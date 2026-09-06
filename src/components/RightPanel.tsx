@@ -1,0 +1,400 @@
+import { useStudio } from '../store';
+import type { DeviceLayer, PatternKind, ShadowPreset } from '../types';
+import {
+  clamp, DECO_SETS, DEVICE_META, FIT_MODES, PATTERNS, SHADOWS, TECH_BADGES, textOn,
+} from '../templates';
+import { ColorInput, PosGrid, Section, Seg, SliderRow, Toggle } from './ui';
+import {
+  IcArrowL, IcArrowR, IcCopy, IcDown, IcEye, IcEyeOff, IcLayers, IcTrash, IcUp,
+} from '../icons';
+
+export function RightPanel() {
+  const selection = useStudio(s => s.selection);
+  const project = useStudio(s => s.project)!;
+  const device = selection?.kind === 'device' ? project.devices.find(d => d.id === selection.id) : undefined;
+
+  return (
+    <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col">
+      <div className="flex-1 overflow-y-auto bg-ink">
+        {device ? <DeviceProps d={device} />
+          : selection?.kind === 'text' ? <TextProps />
+          : selection?.kind === 'logo' ? <LogoProps />
+          : <BackgroundProps />}
+        <LayersList />
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- device ---------------- */
+function DeviceProps({ d }: { d: DeviceLayer }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const removeDevice = useStudio(s => s.removeDevice);
+  const duplicateDevice = useStudio(s => s.duplicateDevice);
+  const reorderDevice = useStudio(s => s.reorderDevice);
+  const meta = DEVICE_META[d.kind];
+  const patch = (fn: (x: DeviceLayer) => DeviceLayer) =>
+    update(p => ({ ...p, devices: p.devices.map(x => x.id === d.id ? fn(x) : x) }), false);
+  const aspect = meta.aspect;
+  const h = d.w / aspect;
+
+  return (
+    <>
+      <Section title={meta.label} right={
+        <span className="text-[10px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.name}</span>
+      }>
+        <div className="flex gap-1 mb-1">
+          <button className="icon-btn" title="Move up (front)" onClick={() => reorderDevice(d.id, 1)}><IcUp size={14} /></button>
+          <button className="icon-btn" title="Move down (back)" onClick={() => reorderDevice(d.id, -1)}><IcDown size={14} /></button>
+          <button className="icon-btn" title="Duplicate (Ctrl+D)" onClick={() => duplicateDevice(d.id)}><IcCopy size={14} /></button>
+          <button className="icon-btn hover:!text-danger" title="Delete (Del)" onClick={() => removeDevice(d.id)}><IcTrash size={14} /></button>
+        </div>
+      </Section>
+
+      <Section title="Screenshot">
+        <div className="grid grid-cols-4 gap-1.5">
+          <button
+            className="h-12 rounded-md border text-[9px] cursor-pointer transition-all"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              borderColor: d.assetId === null ? 'var(--color-acc)' : 'var(--color-line)',
+              background: d.assetId === null ? 'rgba(255,107,61,0.1)' : 'var(--color-panel)',
+              color: d.assetId === null ? 'var(--color-acc)' : 'var(--color-dim)',
+            }}
+            onClick={() => { checkpoint(); patch(x => ({ ...x, assetId: null })); }}
+          >
+            none
+          </button>
+          {project.assets.map(a => (
+            <button
+              key={a.id}
+              className="h-12 rounded-md overflow-hidden border cursor-pointer transition-all hover:scale-[1.04]"
+              style={{ borderColor: d.assetId === a.id ? 'var(--color-acc)' : 'var(--color-line)', boxShadow: d.assetId === a.id ? '0 0 0 2px rgba(255,107,61,0.2)' : undefined }}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, assetId: a.id })); }}
+              title={a.name}
+            >
+              <img src={a.dataUrl} alt={a.name} className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3">
+          <div className="label-mono mb-1.5">Fit mode</div>
+          <Seg options={FIT_MODES} value={d.fit} onChange={(v) => { checkpoint(); patch(x => ({ ...x, fit: v })); }} />
+        </div>
+        <div className="mt-3">
+          <SliderRow label="Zoom" value={d.zoom} min={1} max={2.5} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, zoom: v }))} />
+          <SliderRow label="Pan X" value={d.panX} min={-1} max={1} step={0.01} fmt={v => v.toFixed(2)} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panX: v }))} />
+          <SliderRow label="Pan Y" value={d.panY} min={-1} max={1} step={0.01} fmt={v => v.toFixed(2)} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panY: v }))} />
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Size" value={Math.round((d.w / project.canvas.w) * 100)} min={8} max={110} fmt={v => `${v}%`} onStart={checkpoint}
+          onChange={v => patch(x => ({ ...x, w: clamp((v / 100) * project.canvas.w, 90, project.canvas.w * 1.1) }))} />
+        <SliderRow label="Tilt" value={d.tilt} min={-24} max={24} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, tilt: v }))} />
+        <SliderRow label="X" value={Math.round(d.x)} min={-Math.round(d.w)} max={project.canvas.w} onStart={checkpoint} onChange={v => patch(x => ({ ...x, x: v }))} />
+        <SliderRow label="Y" value={Math.round(d.y)} min={-Math.round(h)} max={project.canvas.h} onStart={checkpoint} onChange={v => patch(x => ({ ...x, y: v }))} />
+        <div className="flex items-center justify-between text-[11px] mt-1" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+          <span>{Math.round(d.w)} × {Math.round(h)} px</span>
+        </div>
+      </Section>
+
+      <Section title="Frame color">
+        <div className="flex gap-2 flex-wrap">
+          {meta.colors.map(c => (
+            <button
+              key={c.hex}
+              title={c.name}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, color: c.hex })); }}
+              className="cursor-pointer transition-transform hover:scale-110"
+              style={{
+                width: 26, height: 26, borderRadius: 8, background: c.hex,
+                border: `2px solid ${d.color === c.hex ? 'var(--color-acc)' : 'var(--color-line)'}`,
+                boxShadow: d.color === c.hex ? '0 0 0 3px rgba(255,107,61,0.18)' : undefined,
+              }}
+            />
+          ))}
+          <ColorInput value={d.color} onChange={(v) => patch(x => ({ ...x, color: v }))} label="custom" />
+        </div>
+      </Section>
+
+      <Section title="Shadow">
+        <div className="grid grid-cols-5 gap-1">
+          {SHADOWS.map(sh => (
+            <button
+              key={sh.id}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, shadow: sh.id as ShadowPreset })); }}
+              className="py-1.5 text-[10.5px] rounded-md border cursor-pointer transition-all"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: d.shadow === sh.id ? 'var(--color-acc)' : 'var(--color-line)',
+                background: d.shadow === sh.id ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: d.shadow === sh.id ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {sh.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {d.kind === 'browser' && (
+        <Section title="Address bar">
+          <input className="input" value={d.url} placeholder="yourapp.com"
+            onChange={(e) => patch(x => ({ ...x, url: e.target.value }))}
+            onFocus={() => checkpoint()} style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }} />
+        </Section>
+      )}
+    </>
+  );
+}
+
+/* ---------------- background ---------------- */
+function BackgroundProps() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const b = project.background;
+  const patch = (fn: (x: typeof b) => typeof b) => update(p => ({ ...p, background: fn(p.background) }), false);
+  const dpatch = (fn: (x: typeof project.decoration) => typeof project.decoration) => update(p => ({ ...p, decoration: fn(p.decoration) }), false);
+
+  return (
+    <>
+      <Section title="Background">
+        <Seg
+          options={[{ id: 'solid', label: 'Solid' }, { id: 'linear', label: 'Linear' }, { id: 'radial', label: 'Radial' }, { id: 'mesh', label: 'Mesh' }] as { id: typeof b.type; label: string }[]}
+          value={b.type}
+          onChange={(v) => { checkpoint(); patch(x => ({ ...x, type: v })); }}
+        />
+        <div className="flex items-center gap-3 mt-3">
+          <ColorInput value={b.c1} onChange={(v) => { checkpoint(); patch(x => ({ ...x, c1: v })); }} label="base" />
+          {b.type !== 'solid' && <ColorInput value={b.c2} onChange={(v) => { checkpoint(); patch(x => ({ ...x, c2: v })); }} label="second" />}
+          {b.type === 'mesh' && <ColorInput value={b.c3} onChange={(v) => { checkpoint(); patch(x => ({ ...x, c3: v })); }} label="third" />}
+        </div>
+        {b.type === 'linear' && (
+          <div className="mt-3">
+            <SliderRow label="Angle" value={b.angle} min={0} max={360} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, angle: v }))} />
+          </div>
+        )}
+      </Section>
+
+      <Section title="Pattern overlay">
+        <div className="grid grid-cols-6 gap-1 mb-2.5">
+          {PATTERNS.map(pt => (
+            <button
+              key={pt.id}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, pattern: pt.id as PatternKind })); }}
+              className="py-1.5 text-[9.5px] rounded-md border cursor-pointer transition-all"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: b.pattern === pt.id ? 'var(--color-acc)' : 'var(--color-line)',
+                background: b.pattern === pt.id ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: b.pattern === pt.id ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {pt.label}
+            </button>
+          ))}
+        </div>
+        {b.pattern !== 'none' && (
+          <SliderRow label="Pattern opacity" value={Math.round(b.patternOpacity * 100)} min={2} max={60} fmt={v => `${v}%`}
+            onStart={checkpoint} onChange={v => patch(x => ({ ...x, patternOpacity: v / 100 }))} />
+        )}
+      </Section>
+
+      <Section title="Decorative shapes">
+        <div className="grid grid-cols-6 gap-1 mb-2.5">
+          {DECO_SETS.map(ds => (
+            <button
+              key={ds.id}
+              onClick={() => { checkpoint(); dpatch(x => ({ ...x, set: ds.id })); }}
+              className="py-1.5 text-[9.5px] rounded-md border cursor-pointer transition-all"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: project.decoration.set === ds.id ? 'var(--color-acc)' : 'var(--color-line)',
+                background: project.decoration.set === ds.id ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: project.decoration.set === ds.id ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {ds.label}
+            </button>
+          ))}
+        </div>
+        <SliderRow label="Intensity" value={Math.round(project.decoration.intensity * 100)} min={40} max={150} fmt={v => `${v}%`}
+          onStart={checkpoint} onChange={v => dpatch(x => ({ ...x, intensity: v / 100 }))} />
+        <div className="flex items-center gap-2 mt-1">
+          <button className="btn text-[11.5px] flex-1 justify-center" onClick={() => { checkpoint(); dpatch(x => ({ ...x, seed: Math.floor(Math.random() * 1e9) })); }}>
+            <IcArrowR size={12} /> Shuffle placement
+          </button>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <ColorInput value={project.accents.a1} onChange={(v) => { checkpoint(); update(p => ({ ...p, accents: { ...p.accents, a1: v } })); }} label="accent" />
+          <ColorInput value={project.accents.a2} onChange={(v) => { checkpoint(); update(p => ({ ...p, accents: { ...p.accents, a2: v } })); }} label="accent 2" />
+        </div>
+      </Section>
+    </>
+  );
+}
+
+/* ---------------- text ---------------- */
+function TextProps() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const t = project.text;
+  const patch = (fn: (x: typeof t) => typeof t) => update(p => ({ ...p, text: fn(p.text) }), false);
+
+  return (
+    <>
+      <Section title="Text block" right={<Toggle on={t.enabled} onChange={(v) => { checkpoint(); patch(x => ({ ...x, enabled: v })); }} />}>
+        <input className="input mb-2" placeholder="Project name" value={t.title}
+          onChange={(e) => patch(x => ({ ...x, title: e.target.value }))} onFocus={checkpoint}
+          style={{ fontFamily: 'var(--font-disp)', fontWeight: 600 }} />
+        <input className="input" placeholder="One-line description" value={t.subtitle}
+          onChange={(e) => patch(x => ({ ...x, subtitle: e.target.value }))} onFocus={checkpoint}
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }} />
+        <div className="mt-3">
+          <SliderRow label="Text scale" value={Math.round(t.scale * 100)} min={60} max={160} fmt={v => `${v}%`}
+            onStart={checkpoint} onChange={v => patch(x => ({ ...x, scale: v / 100 }))} />
+        </div>
+      </Section>
+
+      <Section title="Position">
+        <PosGrid value={t.position} onChange={(v) => { checkpoint(); patch(x => ({ ...x, position: v })); }} />
+      </Section>
+
+      <Section title="Color">
+        <div className="flex items-center gap-3">
+          <Toggle on={t.autoColor} onChange={(v) => { checkpoint(); patch(x => ({ ...x, autoColor: v })); }} label="Auto contrast" />
+          {!t.autoColor && <ColorInput value={t.color} onChange={(v) => { checkpoint(); patch(x => ({ ...x, color: v })); }} />}
+        </div>
+        <div className="mt-2 text-[10.5px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+          auto → {textOn(project.background.c1)}
+        </div>
+      </Section>
+
+      <Section title="Tech badges" right={<Toggle on={t.showBadges} onChange={(v) => { checkpoint(); patch(x => ({ ...x, showBadges: v })); }} />}>
+        <div className="flex flex-wrap gap-1.5">
+          {TECH_BADGES.map(b => {
+            const on = t.badges.includes(b);
+            return (
+              <button
+                key={b}
+                className={`chip ${on ? 'on' : ''}`}
+                onClick={() => { checkpoint(); patch(x => ({ ...x, badges: on ? x.badges.filter(y => y !== b) : [...x.badges, b] })); }}
+              >
+                {b}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          className="input mt-2.5" placeholder="+ custom badge, press Enter"
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
+          onKeyDown={(e) => {
+            const el = e.target as HTMLInputElement;
+            if (e.key === 'Enter' && el.value.trim()) {
+              checkpoint();
+              patch(x => ({ ...x, badges: [...x.badges, el.value.trim()] }));
+              el.value = '';
+            }
+          }}
+        />
+      </Section>
+    </>
+  );
+}
+
+/* ---------------- logo ---------------- */
+function LogoProps() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const l = project.logo;
+  const patch = (fn: (x: typeof l) => typeof l) => update(p => ({ ...p, logo: fn(p.logo) }), false);
+
+  return (
+    <>
+      <Section title="Logo" right={<Toggle on={l.enabled} onChange={(v) => { checkpoint(); patch(x => ({ ...x, enabled: v })); }} />}>
+        <div className="grid grid-cols-4 gap-1.5">
+          {project.assets.map(a => (
+            <button
+              key={a.id}
+              className="h-12 rounded-md overflow-hidden border cursor-pointer bg-panel transition-all hover:scale-[1.04] p-1"
+              style={{ borderColor: l.assetId === a.id ? 'var(--color-acc)' : 'var(--color-line)' }}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, assetId: a.id, enabled: true })); }}
+              title={a.name}
+            >
+              <img src={a.dataUrl} alt={a.name} className="w-full h-full object-contain" />
+            </button>
+          ))}
+          {project.assets.length === 0 && (
+            <p className="col-span-4 text-[11.5px]" style={{ color: 'var(--color-dim)' }}>Upload a logo in the Screens tab first.</p>
+          )}
+        </div>
+        <div className="mt-3">
+          <SliderRow label="Size" value={Math.round(l.size * 100)} min={4} max={25} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, size: v / 100 }))} />
+          <SliderRow label="Opacity" value={Math.round(l.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, opacity: v / 100 }))} />
+        </div>
+      </Section>
+      <Section title="Position">
+        <PosGrid value={l.position} onChange={(v) => { checkpoint(); patch(x => ({ ...x, position: v })); }} />
+      </Section>
+    </>
+  );
+}
+
+/* ---------------- layers ---------------- */
+function LayersList() {
+  const project = useStudio(s => s.project)!;
+  const selection = useStudio(s => s.selection);
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const reorderDevice = useStudio(s => s.reorderDevice);
+
+  const rowCls = (on: boolean) =>
+    `w-full flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors text-left ${on ? 'bg-[rgba(255,107,61,0.1)]' : 'hover:bg-panel2'}`;
+
+  return (
+    <Section title="Layers" right={<IcLayers size={13} />}>
+      <div className="space-y-0.5">
+        {[...project.devices].reverse().map(d => {
+          const on = selection?.kind === 'device' && selection.id === d.id;
+          return (
+            <div key={d.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'device', id: d.id })}
+              style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, devices: p.devices.map(x => x.id === d.id ? { ...x, visible: !x.visible } : x) }), false); }}>
+                {d.visible ? <IcEye size={12} /> : <IcEyeOff size={12} />}
+              </button>
+              <span className="flex-1 text-[12px] truncate" style={{ opacity: d.visible ? 1 : 0.45 }}>{d.name}</span>
+              <span className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.kind}</span>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { e.stopPropagation(); reorderDevice(d.id, 1); }}><IcArrowL size={10} className="rotate-90" /></button>
+            </div>
+          );
+        })}
+
+        {([
+          { kind: 'text' as const, label: 'Text block', on: project.text.enabled, toggle: () => update(p => ({ ...p, text: { ...p.text, enabled: !p.text.enabled } }), false) },
+          { kind: 'logo' as const, label: 'Logo', on: project.logo.enabled, toggle: () => update(p => ({ ...p, logo: { ...p.logo, enabled: !p.logo.enabled } }), false) },
+          { kind: 'background' as const, label: 'Background', on: true, toggle: () => undefined },
+        ]).map(l => {
+          const on = selection?.kind === l.kind;
+          return (
+            <div key={l.kind} className={rowCls(!!on)} onClick={() => setSelection({ kind: l.kind })}
+              style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); l.toggle(); }}>
+                {l.on ? <IcEye size={12} /> : <IcEyeOff size={12} />}
+              </button>
+              <span className="flex-1 text-[12px]" style={{ opacity: l.on ? 1 : 0.45 }}>{l.label}</span>
+              <span className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{l.kind}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
