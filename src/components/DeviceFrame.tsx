@@ -1,28 +1,37 @@
 import { useId } from 'react';
-import type { DeviceKind } from '../types';
+import type { DeviceKind, Material } from '../types';
 import { deviceGeometry, luminance, shade } from '../templates';
 
 /**
  * SVG device chrome. Geometry comes from deviceGeometry() — the exact same
  * function the canvas export renderer uses, so preview ≡ export.
  */
-export function DeviceFrame({ kind, color, w, h, part, url }: {
+const glareK = (m?: Material) => (m === 'glossy' ? 1.8 : m === 'glass' ? 1.4 : m === 'metallic' ? 1.1 : 1);
+
+export function DeviceFrame({ kind, color, w, h, part, url, radiusMul = 1, material, reflection = 0 }: {
   kind: DeviceKind; color: string; w: number; h: number; part: 'back' | 'front'; url?: string;
+  radiusMul?: number; material?: Material; reflection?: number;
 }) {
   const cid = useId().replace(/:/g, '');
-  const g = deviceGeometry(kind, w, h);
+  const g = deviceGeometry(kind, w, h, radiusMul);
   const light = luminance(color) > 0.5;
   const clip = `clip${cid}`;
+  const gid = `glare${cid}`;
+  const k = glareK(material);
 
   const glare = (
     <g clipPath={`url(#${clip})`}>
       <polygon
         points={`${g.x},${g.y} ${g.x + g.w * 0.45},${g.y} ${g.x + g.w * 0.16},${g.y + g.h} ${g.x},${g.y + g.h}`}
-        fill="#ffffff" opacity="0.055"
+        fill={`rgba(255,255,255,${0.055 * k})`}
       />
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={g.r} fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="1" />
     </g>
   );
+
+  const reflectionEl = reflection > 0.02 && part === 'front' ? (
+    <rect x={w * 0.08} y={h} width={w * 0.84} height={h * 0.22 * reflection} fill={`url(#${gid})`} />
+  ) : null;
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible' }}>
@@ -30,6 +39,10 @@ export function DeviceFrame({ kind, color, w, h, part, url }: {
         <clipPath id={clip}>
           <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={g.r} />
         </clipPath>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
       </defs>
 
       {part === 'back' && (
@@ -50,7 +63,7 @@ export function DeviceFrame({ kind, color, w, h, part, url }: {
 
           {kind === 'phone' && (
             <>
-              <rect x={0} y={0} width={w} height={h} rx={w * 0.13} fill={color} stroke={shade(color, -25)} strokeWidth="1" />
+              <rect x={0} y={0} width={w} height={h} rx={w * 0.13 * radiusMul} fill={color} stroke={shade(color, -25)} strokeWidth="1" />
               <rect x={w - 1.2} y={h * 0.24} width={2.6} height={h * 0.09} rx={1.3} fill={shade(color, -22)} />
               <rect x={w - 1.2} y={h * 0.36} width={2.6} height={h * 0.06} rx={1.3} fill={shade(color, -22)} />
               <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={g.r} fill="#0b0c0f" />
@@ -59,7 +72,7 @@ export function DeviceFrame({ kind, color, w, h, part, url }: {
 
           {kind === 'tablet' && (
             <>
-              <rect x={0} y={0} width={w} height={h} rx={w * 0.035} fill={color} stroke={shade(color, -22)} strokeWidth="1" />
+              <rect x={0} y={0} width={w} height={h} rx={w * 0.035 * radiusMul} fill={color} stroke={shade(color, -22)} strokeWidth="1" />
               <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={g.r} fill="#0b0c0f" />
               <circle cx={w / 2} cy={g.y / 2} r={Math.max(1.8, w * 0.0045)} fill={shade(color, -38)} />
             </>
@@ -118,6 +131,7 @@ export function DeviceFrame({ kind, color, w, h, part, url }: {
           )}
           {kind === 'browser' && <line x1={0} y1={g.y} x2={w} y2={g.y} stroke={light ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.5)'} strokeWidth="1" />}
           {glare}
+          {reflectionEl}
         </>
       )}
     </svg>

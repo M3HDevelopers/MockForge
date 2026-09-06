@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { useStudio } from '../store';
 import type { DeviceKind, Project } from '../types';
 import {
-  applyLayoutPositions, CANVAS_PRESETS, DEVICE_META, makeDefaultProject, PROJECT_TYPES,
+  applyLayoutPositions, CANVAS_PRESETS, DEVICE_META, DECO_PRESETS, makeDefaultProject, PROJECT_TYPES,
 } from '../templates';
+import { COMPOSITIONS } from '../engine';
 import { makeThumbnail } from '../renderer';
 import { loadDemoAssets } from '../sampleScreens';
 import { DeviceFrame } from './DeviceFrame';
 import {
-  IcArrowR, IcCopy, IcFolder, IcPlus, IcSpin, IcTrash, LogoMark,
+  IcArrowR, IcCopy, IcFolder, IcPlus, IcSpin, IcStar, IcTrash, IcWand, LogoMark,
 } from '../icons';
 
 function timeAgo(ts: number): string {
@@ -27,6 +28,8 @@ export function Dashboard() {
   const duplicateProject = useStudio(s => s.duplicateProject);
   const createProject = useStudio(s => s.createProject);
   const importProject = useStudio(s => s.importProject);
+  const favorites = useStudio(s => s.favorites);
+  const unfavorite = useStudio(s => s.unfavorite);
   const toast = useStudio(s => s.toast);
   const [modal, setModal] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -111,6 +114,28 @@ export function Dashboard() {
               </div>
             ))}
           </div>
+
+          {/* engine strip */}
+          <div className="mt-4 card card-hover px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-3" style={{ animation: 'fadeUp .5s .3s cubic-bezier(.2,.7,.3,1) both' }}>
+            <div className="flex items-center gap-2.5">
+              <span className="text-acc"><IcWand size={18} /></span>
+              <div>
+                <div className="text-[13.5px] font-semibold" style={{ fontFamily: 'var(--font-disp)' }}>Procedural Design Engine</div>
+                <div className="text-[10px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>unlimited combinations · scored · constraint-aware</div>
+              </div>
+            </div>
+            {([
+              [`${COMPOSITIONS.length}+`, 'compositions'],
+              ['8', 'backdrop styles'],
+              [`${DECO_PRESETS.length}`, 'decor presets'],
+              ['13', 'design moods'],
+            ] as const).map(([n, l]) => (
+              <div key={l} className="flex items-baseline gap-2">
+                <span className="text-[17px] font-bold" style={{ fontFamily: 'var(--font-disp)', color: 'var(--color-acc2)' }}>{n}</span>
+                <span className="label-mono">{l}</span>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* projects */}
@@ -138,6 +163,34 @@ export function Dashboard() {
             </div>
           )}
         </section>
+
+        {/* favorites */}
+        {favorites.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[19px] font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-disp)' }}>
+                <span className="text-gold"><IcStar size={17} /></span> Favorite designs
+              </h2>
+              <span className="label-mono">{favorites.length} saved</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 stagger">
+              {favorites.slice(0, 10).map(f => (
+                <div key={f.id} className="group relative rounded-lg overflow-hidden border border-line hover:border-[#4a4f5c] transition-colors">
+                  <img src={f.thumb} alt={f.label} className="w-full aspect-[8/5] object-cover" />
+                  <div className="absolute inset-x-0 bottom-0 px-2 py-1.5 flex items-center justify-between" style={{ background: 'linear-gradient(transparent, rgba(8,9,11,0.85))' }}>
+                    <span className="text-[10px] truncate" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-mut)' }}>{f.label}</span>
+                    <button className="icon-btn !w-5 !h-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => unfavorite(f.id)}>
+                      <IcTrash size={10} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10.5px] mt-2.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+              apply these from inside a project via Design Engine → Library
+            </p>
+          </section>
+        )}
 
         {/* quick start */}
         <section>

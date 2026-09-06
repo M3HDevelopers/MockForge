@@ -1,12 +1,20 @@
 import { useStudio } from '../store';
-import type { DeviceLayer, PatternKind, ShadowPreset } from '../types';
+import type { BgStyle, DeviceLayer, LightType, Material, PatternKind, ShadowPreset } from '../types';
 import {
-  clamp, DECO_SETS, DEVICE_META, FIT_MODES, PATTERNS, SHADOWS, TECH_BADGES, textOn,
+  clamp, DECO_SETS, DEVICE_META, FIT_MODES, LIGHTING, MATERIALS, PATTERNS, SHADOWS,
+  TECH_BADGES, TYPO_PRESETS, textOn,
 } from '../templates';
+import { DECO_PRESETS } from '../templates';
 import { ColorInput, PosGrid, Section, Seg, SliderRow, Toggle } from './ui';
 import {
-  IcArrowL, IcArrowR, IcCopy, IcDown, IcEye, IcEyeOff, IcLayers, IcTrash, IcUp,
+  IcAlignH, IcAlignV, IcArrowL, IcArrowR, IcCopy, IcDown, IcEye, IcEyeOff, IcLayers, IcTrash, IcUp,
 } from '../icons';
+
+const BG_STYLE_OPTS: { id: BgStyle; label: string }[] = [
+  { id: 'plain', label: 'Clean' }, { id: 'studio', label: 'Studio' }, { id: 'abstract', label: 'Abstract' },
+  { id: 'architectural', label: 'Arch' }, { id: 'grid', label: 'Grid' }, { id: 'editorial', label: 'Editorial' },
+  { id: 'tech', label: 'Tech' }, { id: 'glass', label: 'Glass' },
+];
 
 export function RightPanel() {
   const selection = useStudio(s => s.selection);
@@ -34,6 +42,8 @@ function DeviceProps({ d }: { d: DeviceLayer }) {
   const removeDevice = useStudio(s => s.removeDevice);
   const duplicateDevice = useStudio(s => s.duplicateDevice);
   const reorderDevice = useStudio(s => s.reorderDevice);
+  const alignDevices = useStudio(s => s.alignDevices);
+  const distributeDevices = useStudio(s => s.distributeDevices);
   const meta = DEVICE_META[d.kind];
   const patch = (fn: (x: DeviceLayer) => DeviceLayer) =>
     update(p => ({ ...p, devices: p.devices.map(x => x.id === d.id ? fn(x) : x) }), false);
@@ -141,6 +151,26 @@ function DeviceProps({ d }: { d: DeviceLayer }) {
         </div>
       </Section>
 
+      <Section title="Appearance">
+        <SliderRow label="Brightness" value={Math.round((d.brightness ?? 1) * 100)} min={50} max={150} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, brightness: v / 100 }))} />
+        <SliderRow label="Reflection" value={Math.round((d.reflection ?? 0) * 100)} min={0} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, reflection: v / 100 }))} />
+        <SliderRow label="Corner radius" value={Math.round((d.radiusMul ?? 1) * 100)} min={40} max={200} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, radiusMul: v / 100 }))} />
+        <SliderRow label="Opacity" value={Math.round((d.opacity ?? 1) * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, opacity: v / 100 }))} />
+        <div className="mt-2">
+          <div className="label-mono mb-1.5">Material</div>
+          <Seg options={MATERIALS} value={d.material ?? 'matte'} onChange={(v) => { checkpoint(); patch(x => ({ ...x, material: v as Material })); }} />
+        </div>
+      </Section>
+
+      <Section title="Arrange all devices">
+        <div className="grid grid-cols-2 gap-1.5">
+          <button className="btn !text-[11px] justify-center" onClick={() => alignDevices('h')}><IcAlignH size={13} /> Top</button>
+          <button className="btn !text-[11px] justify-center" onClick={() => alignDevices('center')}><IcAlignH size={13} /> Centers</button>
+          <button className="btn !text-[11px] justify-center" onClick={() => alignDevices('v')}><IcAlignV size={13} /> Left</button>
+          <button className="btn !text-[11px] justify-center" onClick={() => distributeDevices('h')}><IcAlignH size={13} /> Spread H</button>
+        </div>
+      </Section>
+
       {d.kind === 'browser' && (
         <Section title="Address bar">
           <input className="input" value={d.url} placeholder="yourapp.com"
@@ -163,6 +193,44 @@ function BackgroundProps() {
 
   return (
     <>
+      <Section title="Backdrop style">
+        <div className="grid grid-cols-4 gap-1 mb-2.5">
+          {BG_STYLE_OPTS.map(s => (
+            <button
+              key={s.id}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, style: s.id })); }}
+              className="py-1.5 text-[9.5px] rounded-md border cursor-pointer transition-all"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: b.style === s.id ? 'var(--color-acc)' : 'var(--color-line)',
+                background: b.style === s.id ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: b.style === s.id ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="label-mono mb-1.5">Lighting</div>
+        <Seg
+          options={LIGHTING.map(l => ({ id: l.id, label: l.label.split(' ')[0] })) as { id: LightType; label: string }[]}
+          value={b.light?.type ?? 'none'}
+          onChange={(v) => { checkpoint(); patch(x => ({ ...x, light: { type: v, intensity: x.light?.intensity ?? 0.55 } })); }}
+        />
+        {(b.light?.type ?? 'none') !== 'none' && (
+          <div className="mt-2">
+            <SliderRow label="Light strength" value={Math.round((b.light?.intensity ?? 0.5) * 100)} min={10} max={100} fmt={v => `${v}%`}
+              onStart={checkpoint} onChange={v => patch(x => ({ ...x, light: { type: x.light?.type ?? 'none', intensity: v / 100 } }))} />
+          </div>
+        )}
+        {b.type === 'mesh' && (
+          <div className="mt-2">
+            <SliderRow label="Mesh points" value={b.meshPoints ?? 4} min={2} max={6} fmt={v => `${v}`}
+              onStart={checkpoint} onChange={v => patch(x => ({ ...x, meshPoints: Math.round(v) }))} />
+          </div>
+        )}
+      </Section>
+
       <Section title="Background">
         <Seg
           options={[{ id: 'solid', label: 'Solid' }, { id: 'linear', label: 'Linear' }, { id: 'radial', label: 'Radial' }, { id: 'mesh', label: 'Mesh' }] as { id: typeof b.type; label: string }[]}
@@ -235,6 +303,42 @@ function BackgroundProps() {
           <ColorInput value={project.accents.a2} onChange={(v) => { checkpoint(); update(p => ({ ...p, accents: { ...p.accents, a2: v } })); }} label="accent 2" />
         </div>
       </Section>
+
+      <Section title={`Decoration layers · ${project.decos.length}`}>
+        {project.decos.length === 0 && (
+          <p className="text-[10.5px]" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+            none — add from the Decor tab or press Surprise me
+          </p>
+        )}
+        <div className="space-y-2">
+          {project.decos.map((dec, i) => {
+            const label = DECO_PRESETS.find(pp => pp.id === dec.preset)?.label ?? dec.preset;
+            return (
+              <div key={dec.id} className="rounded-lg border border-line bg-panel p-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-medium">{i + 1}. {label}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      className={`chip !text-[9px] ${dec.depth === 'front' ? 'on' : ''}`}
+                      onClick={() => { checkpoint(); update(p => ({ ...p, decos: p.decos.map(x => x.id === dec.id ? { ...x, depth: x.depth === 'front' ? 'back' : 'front' } : x) }), false); }}
+                      title="Toggle in front of / behind devices"
+                    >
+                      {dec.depth}
+                    </button>
+                    <button className="icon-btn !w-5 !h-5" onClick={() => { checkpoint(); update(p => ({ ...p, decos: p.decos.filter(x => x.id !== dec.id) }), false); }}>
+                      <IcTrash size={10} />
+                    </button>
+                  </div>
+                </div>
+                <SliderRow label="Opacity" value={Math.round(dec.opacity * 100)} min={5} max={100} fmt={v => `${v}%`}
+                  onStart={checkpoint} onChange={v => update(p => ({ ...p, decos: p.decos.map(x => x.id === dec.id ? { ...x, opacity: v / 100 } : x) }), false)} />
+                <SliderRow label="Scale" value={Math.round(dec.scale * 1000)} min={20} max={220} fmt={v => `${(v / 1000).toFixed(2)}`}
+                  onStart={checkpoint} onChange={v => update(p => ({ ...p, decos: p.decos.map(x => x.id === dec.id ? { ...x, scale: v / 1000 } : x) }), false)} />
+              </div>
+            );
+          })}
+        </div>
+      </Section>
     </>
   );
 }
@@ -249,6 +353,20 @@ function TextProps() {
 
   return (
     <>
+      <Section title="Typography presets">
+        <div className="flex flex-wrap gap-1.5">
+          {TYPO_PRESETS.map(tp => (
+            <button
+              key={tp.id}
+              className={`chip ${t.scale === tp.scale && t.position === tp.pos ? 'on' : ''}`}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, scale: tp.scale, position: tp.pos, showBadges: tp.badges ? x.showBadges : x.showBadges })); }}
+            >
+              {tp.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Text block" right={<Toggle on={t.enabled} onChange={(v) => { checkpoint(); patch(x => ({ ...x, enabled: v })); }} />}>
         <input className="input mb-2" placeholder="Project name" value={t.title}
           onChange={(e) => patch(x => ({ ...x, title: e.target.value }))} onFocus={checkpoint}
