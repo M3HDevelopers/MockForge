@@ -1,93 +1,79 @@
-import { useEffect, useRef } from 'react';
-import type { CSSProperties, PointerEvent as RPointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent as RPointerEvent, DragEvent as RDragEvent } from 'react';
 import { useStudio } from '../store';
 import type { Background, DeviceLayer, Project } from '../types';
-import {
-  clamp, computeFit, deviceGeometry, DEVICE_META, getDecoShapes, luminance, textOn,
-} from '../templates';
-import { patternColor, patternDataUri } from '../renderer';
+import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn } from '../templates';
+import { renderBackground } from '../backgrounds';
+import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
 
-/* ---------- background → CSS ---------- */
+/* ---------- CSS fallback (plain styles) ---------- */
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
   if (b.type === 'linear') return { background: `linear-gradient(${b.angle}deg, ${b.c1}, ${b.c2})` };
   if (b.type === 'radial') return { background: `radial-gradient(120% 120% at 50% 42%, ${b.c1}, ${b.c2})` };
-  return {
-    background: `radial-gradient(70% 70% at 82% 16%, ${b.c2}77, transparent 70%), radial-gradient(65% 65% at 14% 88%, ${b.c3}6e, transparent 70%), ${b.c1}`,
-  };
+  return { background: `radial-gradient(70% 70% at 82% 16%, ${b.c2}77, transparent 70%), radial-gradient(65% 65% at 14% 88%, ${b.c3}6e, transparent 70%), ${b.c1}` };
 }
 
-/* ---------- decoration ---------- */
-function DecoLayer({ p }: { p: Project }) {
-  const shapes = getDecoShapes(p.decoration.set, p.decoration.seed, p.canvas.w, p.canvas.h, p.decoration.intensity, p.accents.a1, p.accents.a2);
-  if (!shapes.length) return null;
+/* ---------- canvas background (preview ≡ export) ---------- */
+function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+    if (depth === 'all') {
+      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
+      drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+    } else {
+      drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
+    }
+  }, [p.background, p.decos, p.accents, p.canvas.w, p.canvas.h, depth]);
   return (
-    <svg className="absolute inset-0 pointer-events-none" width={p.canvas.w} height={p.canvas.h} viewBox={`0 0 ${p.canvas.w} ${p.canvas.h}`}>
-      {shapes.map((s, i) => {
-        const common = { transform: `rotate(${(s.rot * 180) / Math.PI} ${s.x} ${s.y})`, opacity: s.o };
-        if (s.t === 'circle') return <circle key={i} cx={s.x} cy={s.y} r={s.r} fill={s.color} {...common} />;
-        if (s.t === 'ring') return <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="none" stroke={s.color} strokeWidth={Math.max(1.5, s.r * 0.12)} {...common} />;
-        if (s.t === 'plus') return (
-          <g key={i} {...common} stroke={s.color} strokeWidth={Math.max(2, s.r * 0.4)} strokeLinecap="round">
-            <line x1={s.x - s.r} y1={s.y} x2={s.x + s.r} y2={s.y} />
-            <line x1={s.x} y1={s.y - s.r} x2={s.x} y2={s.y + s.r} />
-          </g>
-        );
-        if (s.t === 'sparkle') {
-          const d = `M ${s.x} ${s.y - s.r} Q ${s.x + s.r * 0.16} ${s.y - s.r * 0.16} ${s.x + s.r} ${s.y} Q ${s.x + s.r * 0.16} ${s.y + s.r * 0.16} ${s.x} ${s.y + s.r} Q ${s.x - s.r * 0.16} ${s.y + s.r * 0.16} ${s.x - s.r} ${s.y} Q ${s.x - s.r * 0.16} ${s.y - s.r * 0.16} ${s.x} ${s.y - s.r} Z`;
-          return <path key={i} d={d} fill={s.color} {...common} />;
-        }
-        if (s.t === 'line') {
-          let d = '';
-          for (let k = 0; k <= 40; k++) {
-            const x = s.x - s.r + (k / 40) * s.r * 2;
-            const y = s.y + Math.sin((k / 40) * Math.PI * 3) * s.r * 0.22;
-            d += (k === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
-          }
-          return <path key={i} d={d} fill="none" stroke={s.color} strokeWidth={2} strokeLinecap="round" {...common} />;
-        }
-        const step = s.r * 0.42;
-        return (
-          <g key={i} {...common} fill={s.color}>
-            {Array.from({ length: 25 }).map((_, k) => (
-              <circle key={k} cx={s.x - s.r + (k % 5) * step} cy={s.y - s.r + Math.floor(k / 5) * step} r={Math.max(1.2, s.r * 0.07)} />
-            ))}
-          </g>
-        );
-      })}
-    </svg>
+    <canvas
+      ref={ref}
+      width={p.canvas.w}
+      height={p.canvas.h}
+      className="absolute inset-0"
+      style={{ width: p.canvas.w, height: p.canvas.h, pointerEvents: depth === 'all' ? 'auto' : 'none' }}
+    />
   );
 }
 
 /* ---------- screenshot inside a device ---------- */
 function ScreenImage({ d, dataUrl, iw, ih }: { d: DeviceLayer; dataUrl: string; iw: number; ih: number }) {
   const h = d.w / DEVICE_META[d.kind].aspect;
-  const g = deviceGeometry(d.kind, d.w, h);
+  const g = deviceGeometry(d.kind, d.w, h, d.radiusMul);
   const f = computeFit(g, iw, ih, d.fit, d.zoom, d.panX, d.panY);
+  const filter = Math.abs((d.brightness ?? 1) - 1) > 0.02
+    ? `brightness(${d.brightness})` : undefined;
   return (
     <div className="absolute overflow-hidden" style={{ left: g.x, top: g.y, width: g.w, height: g.h, borderRadius: g.r }}>
       <img
         src={dataUrl} alt="" draggable={false}
         className="absolute select-none"
-        style={{ left: f.dx - g.x, top: f.dy - g.y, width: f.dw, height: f.dh, pointerEvents: 'none' }}
+        style={{ left: f.dx - g.x, top: f.dy - g.y, width: f.dw, height: f.dh, pointerEvents: 'none', filter, opacity: d.opacity ?? 1 }}
       />
     </div>
   );
 }
 
-function PlaceholderScreen({ d }: { d: DeviceLayer }) {
+function PlaceholderScreen({ d, highlight }: { d: DeviceLayer; highlight: boolean }) {
   const h = d.w / DEVICE_META[d.kind].aspect;
-  const g = deviceGeometry(d.kind, d.w, h);
+  const g = deviceGeometry(d.kind, d.w, h, d.radiusMul);
   return (
     <div
-      className="absolute flex items-center justify-center"
+      className="absolute flex items-center justify-center transition-colors"
       style={{
         left: g.x, top: g.y, width: g.w, height: g.h, borderRadius: g.r,
-        background: 'repeating-linear-gradient(45deg, #14161b 0 10px, #171a20 10px 20px)',
+        background: highlight ? 'rgba(255,107,61,0.28)' : 'repeating-linear-gradient(45deg, #14161b 0 10px, #171a20 10px 20px)',
       }}
     >
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: clamp(g.w * 0.045, 10, 22), color: 'rgba(255,255,255,0.32)' }}>+ add screenshot</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: clamp(g.w * 0.045, 10, 22), color: highlight ? '#ffd9c4' : 'rgba(255,255,255,0.32)' }}>
+        {highlight ? 'release to place' : '+ add screenshot'}
+      </span>
     </div>
   );
 }
@@ -95,18 +81,17 @@ function PlaceholderScreen({ d }: { d: DeviceLayer }) {
 /* ---------- text overlay ---------- */
 function TextOverlay({ p }: { p: Project }) {
   const t = p.text;
+  const selected = useStudio(s => s.selection?.kind === 'text');
+  const setSelection = useStudio(s => s.setSelection);
   if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return null;
   const { w: cw, h: ch } = p.canvas;
   const M = Math.round(Math.min(cw, ch) * 0.055);
   const ts = clamp(cw * 0.037, 24, 58) * t.scale;
   const k = clamp(ts / 40, 0.7, 1.4);
   const color = t.autoColor ? textOn(p.background.c1) : t.color;
-  const selected = useStudio(s => s.selection?.kind === 'text');
-  const setSelection = useStudio(s => s.setSelection);
-
   const align = t.position.includes('left') ? 'flex-start' : t.position.includes('right') ? 'flex-end' : 'center';
   const justify = t.position.startsWith('top') ? 'flex-start' : t.position.startsWith('bottom') ? 'flex-end' : 'center';
-
+  const lightText = luminance(color) > 0.5;
   return (
     <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ padding: M, alignItems: align, justifyContent: justify }}>
       <div
@@ -126,22 +111,14 @@ function TextOverlay({ p }: { p: Project }) {
         )}
         {t.showBadges && t.badges.length > 0 && (
           <div className="flex flex-wrap gap-[8px]" style={{ marginTop: (t.title || t.subtitle) ? ts * 0.42 : 0, justifyContent: align === 'center' ? 'center' : align }}>
-            {t.badges.map(b => {
-              const lightText = luminance(color) > 0.5;
-              return (
-                <span
-                  key={b}
-                  style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 12.5 * k, color,
-                    padding: `${5 * k}px ${12 * k}px`, borderRadius: 999,
-                    background: lightText ? 'rgba(255,255,255,0.1)' : 'rgba(21,23,28,0.07)',
-                    border: `1px solid ${lightText ? 'rgba(255,255,255,0.18)' : 'rgba(21,23,28,0.16)'}`,
-                  }}
-                >
-                  {b}
-                </span>
-              );
-            })}
+            {t.badges.map(b => (
+              <span key={b} style={{
+                fontFamily: 'var(--font-mono)', fontSize: 12.5 * k, color,
+                padding: `${5 * k}px ${12 * k}px`, borderRadius: 999,
+                background: lightText ? 'rgba(255,255,255,0.1)' : 'rgba(21,23,28,0.07)',
+                border: `1px solid ${lightText ? 'rgba(255,255,255,0.18)' : 'rgba(21,23,28,0.16)'}`,
+              }}>{b}</span>
+            ))}
           </div>
         )}
       </div>
@@ -173,13 +150,19 @@ function LogoOverlay({ p }: { p: Project }) {
 }
 
 /* ---------- device layer ---------- */
-function DeviceNode({ d }: { d: DeviceLayer }) {
+function DeviceNode({ d, guides, setGuides }: {
+  d: DeviceLayer;
+  guides: { v: number | null; h: number | null };
+  setGuides: (g: { v: number | null; h: number | null }) => void;
+}) {
   const p = useStudio(s => s.project)!;
   const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
   const setSelection = useStudio(s => s.setSelection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
+  const assignAsset = useStudio(s => s.assignAsset);
+  const [dropHot, setDropHot] = useState(false);
   const asset = p.assets.find(a => a.id === d.assetId);
   const h = d.w / DEVICE_META[d.kind].aspect;
   const dragRef = useRef<{ mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number } | null>(null);
@@ -197,35 +180,51 @@ function DeviceNode({ d }: { d: DeviceLayer }) {
     const dx = (e.clientX - drag.sx) / zoom;
     const dy = (e.clientY - drag.sy) / zoom;
     if (drag.mode === 'move') {
-      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: drag.ox + dx, y: drag.oy + dy } : x) }), false);
+      let nx = drag.ox + dx, ny = drag.oy + dy;
+      // smart center guides
+      const cx = nx + d.w / 2, cy = ny + h / 2;
+      const tx = p.canvas.w / 2, ty = p.canvas.h / 2;
+      const th = 8 / zoom;
+      const gv = Math.abs(cx - tx) < th; const gh = Math.abs(cy - ty) < th;
+      if (gv) nx = tx - d.w / 2;
+      if (gh) ny = ty - h / 2;
+      setGuides({ v: gv ? tx : null, h: gh ? ty : null });
+      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: nx, y: ny } : x) }), false);
     } else {
       const nw = clamp(drag.ow + dx, 90, p.canvas.w * 1.1);
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
     }
   };
-  const onUp = () => { dragRef.current = null; };
+  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); };
+
+  const onDrop = (e: RDragEvent) => {
+    e.preventDefault();
+    setDropHot(false);
+    const assetId = e.dataTransfer.getData('text/asset-id');
+    if (assetId) assignAsset(d.id, assetId);
+  };
 
   return (
     <div
       className="absolute cursor-move"
-      style={{ left: d.x, top: d.y, width: d.w, height: h, transform: `rotate(${d.tilt}deg)`, display: d.visible ? undefined : 'none' }}
+      style={{ left: d.x, top: d.y, width: d.w, height: h, transform: `rotate(${d.tilt}deg)`, display: d.visible ? undefined : 'none', opacity: d.opacity ?? 1 }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+      onDragOver={(e) => { e.preventDefault(); setDropHot(true); }}
+      onDragLeave={() => setDropHot(false)}
+      onDrop={onDrop}
     >
-      <DeviceFrame kind={d.kind} color={d.color} w={d.w} h={h} part="back" url={d.url} />
+      <DeviceFrame kind={d.kind} color={d.color} w={d.w} h={h} part="back" url={d.url} radiusMul={d.radiusMul} material={d.material} reflection={d.reflection} />
       {asset
         ? <ScreenImage d={d} dataUrl={asset.dataUrl} iw={asset.w} ih={asset.h} />
-        : <PlaceholderScreen d={d} />}
-      <DeviceFrame kind={d.kind} color={d.color} w={d.w} h={h} part="front" url={d.url} />
+        : <PlaceholderScreen d={d} highlight={dropHot} />}
+      <DeviceFrame kind={d.kind} color={d.color} w={d.w} h={h} part="front" url={d.url} radiusMul={d.radiusMul} material={d.material} reflection={d.reflection} />
 
       {selected && (
         <>
           <svg className="absolute pointer-events-none" style={{ left: -7, top: -7, width: d.w + 14, height: h + 14 }}>
             <rect className="sel-ring-svg" x={1} y={1} width={d.w + 12} height={h + 12} rx={8} />
           </svg>
-          <div
-            className="absolute z-10"
-            style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}
-          >
+          <div className="absolute z-10" style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
             {d.name.toUpperCase()}
           </div>
           <div
@@ -252,6 +251,7 @@ export function StagePreview() {
   const setSelection = useStudio(s => s.setSelection);
   const selection = useStudio(s => s.selection);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -266,6 +266,7 @@ export function StagePreview() {
   }, [zoom, setZoom]);
 
   const W = p.canvas.w * zoom, H = p.canvas.h * zoom;
+  const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
   return (
     <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay">
@@ -276,21 +277,18 @@ export function StagePreview() {
           onPointerDown={() => setSelection({ kind: 'background' })}
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
-            {/* background */}
-            <div className="absolute inset-0" style={bgStyle(p.background)} />
-            {p.background.pattern !== 'none' && p.background.patternOpacity > 0 && (
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: patternDataUri(p.background.pattern, patternColor(p.background.c1)),
-                  opacity: p.background.patternOpacity,
-                }}
-              />
-            )}
-            <DecoLayer p={p} />
-            {p.devices.map(d => <DeviceNode key={d.id} d={d} />)}
+            <PaintCanvas p={p} depth="all" />
+            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
+            <PaintCanvas p={p} depth="front" />
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
+
+            {guides.v != null && (
+              <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: guides.v, width: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
+            )}
+            {guides.h != null && (
+              <div className="absolute left-0 right-0 pointer-events-none" style={{ top: guides.h, height: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
+            )}
 
             {p.devices.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -302,7 +300,6 @@ export function StagePreview() {
             )}
           </div>
 
-          {/* size tag */}
           <div className="absolute -bottom-7 left-0 flex items-center gap-2" style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--color-dim)' }}>
             <span>{p.canvas.w} × {p.canvas.h}</span>
             <span style={{ color: '#3a3f4b' }}>·</span>

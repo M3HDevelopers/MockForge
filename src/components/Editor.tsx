@@ -1,13 +1,14 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useStudio } from '../store';
 import { makeThumbnail } from '../renderer';
 import { LeftPanel } from './LeftPanel';
 import { RightPanel } from './RightPanel';
 import { StagePreview } from './StagePreview';
 import { ExportModal } from './ExportModal';
+import { GeneratePanel } from './GeneratePanel';
 import { clamp } from '../templates';
 import {
-  IcArrowL, IcDice, IcExport, IcFit, IcRedo, IcSave, IcUndo, IcZoomIn, IcZoomOut, LogoMark,
+  IcArrowL, IcDice, IcDownload, IcExport, IcFit, IcRedo, IcSave, IcStar, IcUndo, IcUpload, IcWand, IcZoomIn, IcZoomOut, LogoMark,
 } from '../icons';
 
 export function Editor() {
@@ -31,6 +32,11 @@ export function Editor() {
   const zoom = useStudio(s => s.zoom);
   const setZoom = useStudio(s => s.setZoom);
   const toast = useStudio(s => s.toast);
+  const setGenOpen = useStudio(s => s.setGenOpen);
+  const favorite = useStudio(s => s.favorite);
+  const exportMockup = useStudio(s => s.exportMockup);
+  const importMockup = useStudio(s => s.importMockup);
+  const mockupRef = useRef<HTMLInputElement>(null);
 
   const saveNow = useCallback(async (silent = false) => {
     const p = useStudio.getState().project;
@@ -115,18 +121,31 @@ export function Editor() {
 
         <div className="w-px h-5 bg-line mx-1" />
 
-        <button className="btn" onClick={randomize} title="Rule-based variation — backgrounds, tilts, shadows, decor">
+        <button className="btn btn-acc" onClick={() => setGenOpen(true)} title="Moods, locks, variations, favorites">
+          <IcWand size={14} />
+          <span>Design Engine</span>
+        </button>
+        <button className="btn" onClick={randomize} title="Quick surprise — respects locks">
           <IcDice size={14} />
-          <span>Surprise me</span>
+          <span>Surprise</span>
         </button>
         <button className="btn" onClick={() => void saveNow(false)}>
           <IcSave size={14} />
           <span>Save</span>
         </button>
-        <button className="btn btn-acc" onClick={() => setExportOpen(true)}>
+        <button className="btn" onClick={() => setExportOpen(true)}>
           <IcExport size={14} />
           <span>Export</span>
         </button>
+
+        <div className="w-px h-5 bg-line mx-1" />
+        <button className="icon-btn" title="Save to favorites" onClick={() => void favorite()}><IcStar size={15} /></button>
+        <button className="icon-btn" title="Download .mockup project file" onClick={exportMockup}><IcDownload size={15} /></button>
+        <button className="icon-btn" title="Import .mockup project file" onClick={() => mockupRef.current?.click()}><IcUpload size={15} /></button>
+        <input
+          ref={mockupRef} type="file" hidden accept=".json,application/json"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void importMockup(f); e.target.value = ''; }}
+        />
       </div>
 
       {/* body */}
@@ -151,6 +170,7 @@ export function Editor() {
       </div>
 
       <ExportModal />
+      <GeneratePanel />
       {project.devices.length === 0 && project.assets.length === 0 && (
         <FirstRunHint onPick={() => toast('Add a device or drop a screenshot to begin', 'info')} />
       )}

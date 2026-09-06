@@ -1,7 +1,9 @@
-import type { Asset, DecoShape, DeviceLayer, PatternKind, Project } from './types';
+import type { Asset, DeviceLayer, Project } from './types';
 import {
-  clamp, computeFit, deviceGeometry, getDecoShapes, luminance, SHADOWS, textOn,
+  clamp, computeFit, DEVICE_META, deviceGeometry, luminance, SHADOWS, textOn,
 } from './templates';
+import { renderBackground } from './backgrounds';
+import { drawDecos } from './decos';
 
 /* ---------------- image cache ---------------- */
 const imgCache = new Map<string, HTMLImageElement>();
@@ -47,127 +49,8 @@ function shadeLocal(hex: string, amt: number): string {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
-/* ---------------- patterns ---------------- */
-export function patternColor(c1: string) { return luminance(c1) > 0.5 ? '#191b21' : '#f2f0ea'; }
-
-export function patternDataUri(kind: PatternKind, color: string): string {
-  const enc = (s: string) => `url("data:image/svg+xml,${encodeURIComponent(s)}")`;
-  switch (kind) {
-    case 'dots':
-      return enc(`<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='13' cy='13' r='1.4' fill='${color}'/></svg>`);
-    case 'grid':
-      return enc(`<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><path d='M48 0H0V48' fill='none' stroke='${color}' stroke-width='1'/></svg>`);
-    case 'diag':
-      return enc(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path d='M-4 4l8-8M0 16L16 0M12 20l8-8' stroke='${color}' stroke-width='1.2'/></svg>`);
-    case 'rings':
-      return enc(`<svg xmlns='http://www.w3.org/2000/svg' width='170' height='170'><circle cx='85' cy='85' r='34' fill='none' stroke='${color}' stroke-width='1.2'/><circle cx='85' cy='85' r='66' fill='none' stroke='${color}' stroke-width='1.2'/></svg>`);
-    case 'noise':
-      return enc(`<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/></filter><rect width='140' height='140' filter='url(#n)' opacity='0.55'/></svg>`);
-    default: return '';
-  }
-}
-
-function drawPattern(ctx: CanvasRenderingContext2D, p: Project) {
-  const { pattern, patternOpacity, c1 } = p.background;
-  if (pattern === 'none' || patternOpacity <= 0) return;
-  const { w, h } = p.canvas;
-  const col = patternColor(c1);
-  ctx.save();
-  ctx.globalAlpha = patternOpacity;
-  if (pattern === 'dots') {
-    ctx.fillStyle = col;
-    for (let y = 13; y < h; y += 26) for (let x = 13; x < w; x += 26) { ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fill(); }
-  } else if (pattern === 'grid') {
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath();
-    for (let x = 0; x <= w; x += 48) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-    for (let y = 0; y <= h; y += 48) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
-    ctx.stroke();
-  } else if (pattern === 'diag') {
-    ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.beginPath();
-    for (let i = -h; i < w; i += 16) { ctx.moveTo(i, h); ctx.lineTo(i + h, 0); }
-    ctx.stroke();
-  } else if (pattern === 'rings') {
-    ctx.strokeStyle = col; ctx.lineWidth = 1.2;
-    for (let y = 85; y < h; y += 170) for (let x = 85; x < w; x += 170) {
-      ctx.beginPath(); ctx.arc(x, y, 34, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, y, 66, 0, Math.PI * 2); ctx.stroke();
-    }
-  } else if (pattern === 'noise') {
-    // seeded speckle approximation of turbulence
-    let a = 1234567 >>> 0;
-    const rnd = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-    ctx.fillStyle = col;
-    const count = Math.floor((w * h) / 550);
-    for (let i = 0; i < count; i++) { ctx.globalAlpha = patternOpacity * rnd() * 0.7; ctx.fillRect(rnd() * w, rnd() * h, 1.1, 1.1); }
-  }
-  ctx.restore();
-}
-
-function drawBackground(ctx: CanvasRenderingContext2D, p: Project) {
-  const { w, h } = p.canvas;
-  const b = p.background;
-  if (b.type === 'solid') { ctx.fillStyle = b.c1; ctx.fillRect(0, 0, w, h); }
-  else if (b.type === 'linear') {
-    const a = ((b.angle - 90) * Math.PI) / 180;
-    const cx = w / 2, cy = h / 2, len = (Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))) / 2;
-    const g = ctx.createLinearGradient(cx - Math.cos(a) * len, cy - Math.sin(a) * len, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
-    g.addColorStop(0, b.c1); g.addColorStop(1, b.c2);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  } else if (b.type === 'radial') {
-    const g = ctx.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, Math.max(w, h) * 0.72);
-    g.addColorStop(0, b.c1); g.addColorStop(1, b.c2);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  } else {
-    ctx.fillStyle = b.c1; ctx.fillRect(0, 0, w, h);
-    const blob = (x: number, y: number, r: number, color: string) => {
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, color + 'b3'); g.addColorStop(1, color + '00');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    };
-    blob(w * 0.82, h * 0.16, Math.max(w, h) * 0.42, b.c2);
-    blob(w * 0.14, h * 0.88, Math.max(w, h) * 0.4, b.c3);
-  }
-  drawPattern(ctx, p);
-}
-
-/* ---------------- decoration ---------------- */
-function drawDeco(ctx: CanvasRenderingContext2D, shapes: DecoShape[]) {
-  for (const s of shapes) {
-    ctx.save();
-    ctx.globalAlpha = s.o;
-    ctx.translate(s.x, s.y);
-    ctx.rotate(s.rot);
-    ctx.fillStyle = s.color; ctx.strokeStyle = s.color;
-    if (s.t === 'circle') { ctx.beginPath(); ctx.arc(0, 0, s.r, 0, Math.PI * 2); ctx.fill(); }
-    else if (s.t === 'ring') { ctx.lineWidth = Math.max(1.5, s.r * 0.12); ctx.beginPath(); ctx.arc(0, 0, s.r, 0, Math.PI * 2); ctx.stroke(); }
-    else if (s.t === 'plus') {
-      ctx.lineWidth = Math.max(2, s.r * 0.4); ctx.lineCap = 'round'; ctx.beginPath();
-      ctx.moveTo(-s.r, 0); ctx.lineTo(s.r, 0); ctx.moveTo(0, -s.r); ctx.lineTo(0, s.r); ctx.stroke();
-    } else if (s.t === 'sparkle') {
-      ctx.beginPath();
-      ctx.moveTo(0, -s.r);
-      ctx.quadraticCurveTo(s.r * 0.16, -s.r * 0.16, s.r, 0);
-      ctx.quadraticCurveTo(s.r * 0.16, s.r * 0.16, 0, s.r);
-      ctx.quadraticCurveTo(-s.r * 0.16, s.r * 0.16, -s.r, 0);
-      ctx.quadraticCurveTo(-s.r * 0.16, -s.r * 0.16, 0, -s.r);
-      ctx.fill();
-    } else if (s.t === 'line') {
-      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath();
-      for (let i = 0; i <= 40; i++) {
-        const x = -s.r + (i / 40) * s.r * 2;
-        const y = Math.sin((i / 40) * Math.PI * 3) * s.r * 0.22;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    } else if (s.t === 'dots') {
-      const step = s.r * 0.42;
-      for (let gy = 0; gy < 5; gy++) for (let gx = 0; gx < 5; gx++) {
-        ctx.beginPath(); ctx.arc(-s.r + gx * step, -s.r + gy * step, Math.max(1.2, s.r * 0.07), 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    ctx.restore();
-  }
-}
+const aspectOf = (d: DeviceLayer) => DEVICE_META[d.kind].aspect;
+const materialGlare = (m: string) => (m === 'glossy' ? 1.8 : m === 'glass' ? 1.4 : m === 'metallic' ? 1.1 : 1);
 
 /* ---------------- placeholder screen ---------------- */
 function drawPlaceholder(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
@@ -189,10 +72,11 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, x: number, y: number, w:
 /* ---------------- device drawing ---------------- */
 async function drawDevice(ctx: CanvasRenderingContext2D, d: DeviceLayer, asset: Asset | undefined, accent: string) {
   const h = d.w / aspectOf(d);
-  const g = deviceGeometry(d.kind, d.w, h);
-  const sh = SHADOWS.find(s => s.id === d.shadow)!;
+  const g = deviceGeometry(d.kind, d.w, h, d.radiusMul ?? 1);
+  const sh = SHADOWS.find(s => s.id === d.shadow) ?? SHADOWS[1];
 
   ctx.save();
+  ctx.globalAlpha = d.opacity ?? 1;
   ctx.translate(d.x + d.w / 2, d.y + h / 2);
   ctx.rotate((d.tilt * Math.PI) / 180);
   ctx.translate(-d.w / 2, -h / 2);
@@ -204,64 +88,58 @@ async function drawDevice(ctx: CanvasRenderingContext2D, d: DeviceLayer, asset: 
       ctx.shadowBlur = sh.blur; ctx.shadowOffsetX = sh.dx; ctx.shadowOffsetY = sh.dy;
     }
   };
+  const clearShadow = () => { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };
 
   if (d.kind === 'laptop') {
     const baseH = h * 0.062, lidH = h - baseH;
     applyShadow();
     ctx.fillStyle = body; rr(ctx, 0, 0, d.w, lidH, d.w * 0.02); ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    clearShadow();
     ctx.fillStyle = '#0b0c0f'; rr(ctx, g.x, g.y, g.w, g.h, g.r); ctx.fill();
     await drawScreen(ctx, g, d, asset);
-    // camera
     ctx.fillStyle = shadeLocal(body, -38);
     ctx.beginPath(); ctx.arc(d.w / 2, g.y / 2, Math.max(1.6, d.w * 0.004), 0, Math.PI * 2); ctx.fill();
-    // base
     ctx.fillStyle = shadeLocal(body, 26);
     rr(ctx, -d.w * 0.045, lidH, d.w * 1.09, baseH * 0.55, baseH * 0.3); ctx.fill();
     ctx.fillStyle = shadeLocal(body, -12);
     rr(ctx, -d.w * 0.045, lidH + baseH * 0.5, d.w * 1.09, baseH * 0.5, baseH * 0.3); ctx.fill();
     ctx.fillStyle = shadeLocal(body, -30);
     rr(ctx, d.w / 2 - d.w * 0.07, lidH, d.w * 0.14, baseH * 0.32, baseH * 0.16); ctx.fill();
-    glare(ctx, g);
+    glare(ctx, g, d);
   } else if (d.kind === 'phone') {
     applyShadow();
-    ctx.fillStyle = body; rr(ctx, 0, 0, d.w, h, d.w * 0.13); ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = body; rr(ctx, 0, 0, d.w, h, d.w * 0.13 * (d.radiusMul ?? 1)); ctx.fill();
+    clearShadow();
     ctx.fillStyle = shadeLocal(body, -22);
     rr(ctx, d.w - 1, h * 0.24, 3, h * 0.09, 1.5); ctx.fill();
     rr(ctx, d.w - 1, h * 0.36, 3, h * 0.06, 1.5); ctx.fill();
     ctx.fillStyle = '#0b0c0f'; rr(ctx, g.x, g.y, g.w, g.h, g.r); ctx.fill();
     await drawScreen(ctx, g, d, asset);
-    // dynamic island
     ctx.fillStyle = '#0b0c0f'; ctx.strokeStyle = '#26282e'; ctx.lineWidth = 1;
     rr(ctx, d.w / 2 - g.w * 0.15, g.y + g.h * 0.022, g.w * 0.3, g.h * 0.03, g.h * 0.015); ctx.fill(); ctx.stroke();
-    // home indicator
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     rr(ctx, d.w / 2 - g.w * 0.18, g.y + g.h * 0.965, g.w * 0.36, Math.max(3, h * 0.005), 2); ctx.fill();
-    glare(ctx, g);
+    glare(ctx, g, d);
   } else if (d.kind === 'tablet') {
     applyShadow();
-    ctx.fillStyle = body; rr(ctx, 0, 0, d.w, h, d.w * 0.035); ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = body; rr(ctx, 0, 0, d.w, h, d.w * 0.035 * (d.radiusMul ?? 1)); ctx.fill();
+    clearShadow();
     ctx.fillStyle = '#0b0c0f'; rr(ctx, g.x, g.y, g.w, g.h, g.r); ctx.fill();
     await drawScreen(ctx, g, d, asset);
     ctx.fillStyle = shadeLocal(body, -38);
     ctx.beginPath(); ctx.arc(d.w / 2, g.y / 2, Math.max(1.8, d.w * 0.0045), 0, Math.PI * 2); ctx.fill();
-    glare(ctx, g);
+    glare(ctx, g, d);
   } else if (d.kind === 'browser') {
     const light = luminance(body) > 0.5;
     const chromeH = g.y;
     applyShadow();
     ctx.fillStyle = body; rr(ctx, 0, 0, d.w, h, d.w * 0.02); ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    clearShadow();
     ctx.fillStyle = light ? '#fbfbfc' : '#15171b';
     rr(ctx, g.x, g.y, g.w, g.h, g.r); ctx.fill();
     await drawScreen(ctx, g, d, asset);
-    // traffic lights
     const dotR = Math.max(3, chromeH * 0.12), cy = chromeH / 2;
-    const cols = ['#ff5f57', '#febc2e', '#28c840'];
-    cols.forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(chromeH * 0.55 + i * dotR * 2.6, cy, dotR, 0, Math.PI * 2); ctx.fill(); });
-    // url pill
+    ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(chromeH * 0.55 + i * dotR * 2.6, cy, dotR, 0, Math.PI * 2); ctx.fill(); });
     const pw = d.w * 0.38, px = (d.w - pw) / 2;
     ctx.fillStyle = light ? '#e9ebef' : '#2c313a';
     rr(ctx, px, cy - chromeH * 0.27, pw, chromeH * 0.54, chromeH * 0.27); ctx.fill();
@@ -273,12 +151,11 @@ async function drawDevice(ctx: CanvasRenderingContext2D, d: DeviceLayer, asset: 
     const standH = h * 0.15, screenH = h - standH;
     applyShadow();
     ctx.fillStyle = body; rr(ctx, 0, 0, d.w, screenH, d.w * 0.012); ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    clearShadow();
     ctx.fillStyle = '#0b0c0f'; rr(ctx, g.x, g.y, g.w, g.h, g.r); ctx.fill();
     await drawScreen(ctx, g, d, asset);
     ctx.fillStyle = shadeLocal(body, -30);
     ctx.beginPath(); ctx.arc(d.w / 2, screenH - (screenH - g.y - g.h) / 2, Math.max(1.6, d.w * 0.004), 0, Math.PI * 2); ctx.fill();
-    // stand
     ctx.fillStyle = shadeLocal(body, -16);
     ctx.beginPath();
     ctx.moveTo(d.w * 0.465, screenH);
@@ -288,13 +165,21 @@ async function drawDevice(ctx: CanvasRenderingContext2D, d: DeviceLayer, asset: 
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = shadeLocal(body, -6);
     rr(ctx, d.w / 2 - d.w * 0.12, screenH + standH * 0.72, d.w * 0.24, standH * 0.2, standH * 0.1); ctx.fill();
-    glare(ctx, g);
+    glare(ctx, g, d);
   }
   ctx.restore();
-}
 
-function aspectOf(d: DeviceLayer): number {
-  return d.kind === 'laptop' ? 1.56 : d.kind === 'phone' ? 0.485 : d.kind === 'tablet' ? 1.38 : d.kind === 'browser' ? 1.47 : 1.68;
+  /* floor reflection */
+  if ((d.reflection ?? 0) > 0.02) {
+    ctx.save();
+    const refH = h * 0.22 * (d.reflection ?? 0);
+    const grad = ctx.createLinearGradient(0, d.y + h, 0, d.y + h + refH);
+    grad.addColorStop(0, 'rgba(255,255,255,0.10)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(d.x + d.w * 0.08, d.y + h, d.w * 0.84, refH);
+    ctx.restore();
+  }
 }
 
 async function drawScreen(ctx: CanvasRenderingContext2D, g: { x: number; y: number; w: number; h: number; r: number }, d: DeviceLayer, asset: Asset | undefined) {
@@ -310,15 +195,23 @@ async function drawScreen(ctx: CanvasRenderingContext2D, g: { x: number; y: numb
   } else {
     drawPlaceholder(ctx, g.x, g.y, g.w, g.h);
   }
+  /* brightness */
+  const br = d.brightness ?? 1;
+  if (Math.abs(br - 1) > 0.02) {
+    if (br > 1) { ctx.fillStyle = `rgba(255,255,255,${clamp((br - 1) * 0.9, 0, 0.6)})`; }
+    else { ctx.fillStyle = `rgba(0,0,0,${clamp((1 - br) * 0.9, 0, 0.7)})`; }
+    ctx.fillRect(g.x, g.y, g.w, g.h);
+  }
   ctx.restore();
 }
 
-function glare(ctx: CanvasRenderingContext2D, g: { x: number; y: number; w: number; h: number; r: number }) {
+function glare(ctx: CanvasRenderingContext2D, g: { x: number; y: number; w: number; h: number; r: number }, d: DeviceLayer) {
+  const k = materialGlare(d.material ?? 'matte');
   ctx.save();
   rr(ctx, g.x, g.y, g.w, g.h, g.r); ctx.clip();
   const grad = ctx.createLinearGradient(g.x, g.y, g.x + g.w * 0.7, g.y + g.h);
-  grad.addColorStop(0, 'rgba(255,255,255,0.07)');
-  grad.addColorStop(0.35, 'rgba(255,255,255,0.015)');
+  grad.addColorStop(0, `rgba(255,255,255,${0.07 * k})`);
+  grad.addColorStop(0.35, `rgba(255,255,255,${0.015 * k})`);
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(g.x, g.y, g.w, g.h);
@@ -329,28 +222,15 @@ function glare(ctx: CanvasRenderingContext2D, g: { x: number; y: number; w: numb
 const TEXT_FONT = '"Space Grotesk", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
 
-function textMetrics(p: Project) {
-  const { w: cw, h: ch } = p.canvas;
+function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   const t = p.text;
+  if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return;
+  const { w: cw, h: ch } = p.canvas;
   const M = Math.round(Math.min(cw, ch) * 0.055);
   const ts = clamp(cw * 0.037, 24, 58) * t.scale;
   const color = t.autoColor ? textOn(p.background.c1) : t.color;
   const k = clamp(ts / 40, 0.7, 1.4);
-  let height = 0, width = 0;
-  if (t.title) { height += ts * 1.1; }
-  if (t.subtitle) { height += (t.title ? ts * 0.34 : 0) + ts * 0.5; }
-  if (t.showBadges && t.badges.length) { height += (height > 0 ? ts * 0.42 : 0) + 27 * k; }
-  return { M, ts, color, k, height, width, cw, ch, t };
-}
 
-function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
-  const t = p.text;
-  if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return;
-  const m = textMetrics(p);
-  const { M, ts, color, k } = m;
-  const cw = p.canvas.w, ch = p.canvas.h;
-
-  // measure
   ctx.save();
   ctx.font = `700 ${ts}px ${TEXT_FONT}`;
   const tw = t.title ? ctx.measureText(t.title).width : 0;
@@ -457,15 +337,22 @@ export async function renderProject(p: Project, opts: { scale?: number; transpar
   ctx.scale(scale, scale);
   ctx.imageSmoothingQuality = 'high';
 
-  if (!opts.transparent) drawBackground(ctx, p);
+  const transparent = !!opts.transparent;
+  if (!transparent) renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
 
-  const shapes = getDecoShapes(p.decoration.set, p.decoration.seed, p.canvas.w, p.canvas.h, p.decoration.intensity, p.accents.a1, p.accents.a2);
-  if (!opts.transparent) drawDeco(ctx, shapes);
+  const hasLayers = p.decos && p.decos.length > 0;
+  if (!transparent) {
+    if (hasLayers) drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+    else drawDecos(ctx, [], p.canvas.w, p.canvas.h, p.accents, 'back');
+  }
 
-  for (const d of p.devices) {
+  const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
+  for (const d of sorted) {
     if (!d.visible) continue;
     await drawDevice(ctx, d, p.assets.find(a => a.id === d.assetId), p.accents.a1);
   }
+
+  if (!transparent && hasLayers) drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
 
   await drawLogo(ctx, p);
   drawTextBlock(ctx, p);
