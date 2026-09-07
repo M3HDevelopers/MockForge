@@ -188,6 +188,18 @@ function BackgroundProps() {
   const patch = (fn: (x: typeof b) => typeof b) => update(p => ({ ...p, background: fn(p.background) }), false);
   const dpatch = (fn: (x: typeof project.decoration) => typeof project.decoration) => update(p => ({ ...p, decoration: fn(p.decoration) }), false);
 
+  // When background style changes, clear existing decorations and icons to avoid duplicates
+  const changeBgStyle = (style: BgStyle) => {
+    checkpoint();
+    update(p => ({
+      ...p,
+      background: { ...p.background, style },
+      // Clear decorations and icons when switching background style
+      decos: [],
+      icons: [],
+    }), false);
+  };
+
   return (
     <>
       <Section title="Backdrop style">
@@ -195,7 +207,7 @@ function BackgroundProps() {
           {BG_STYLE_OPTS.map(s => (
             <button
               key={s.id}
-              onClick={() => { checkpoint(); patch(x => ({ ...x, style: s.id })); }}
+              onClick={() => changeBgStyle(s.id)}
               className="py-1.5 text-[9.5px] rounded-md border cursor-pointer transition-all"
               style={{
                 fontFamily: 'var(--font-mono)',
@@ -220,7 +232,12 @@ function BackgroundProps() {
         <Seg
           options={[{ id: 'solid', label: 'Solid' }, { id: 'linear', label: 'Linear' }, { id: 'radial', label: 'Radial' }, { id: 'mesh', label: 'Mesh' }] as { id: typeof b.type; label: string }[]}
           value={b.type}
-          onChange={(v) => { checkpoint(); patch(x => ({ ...x, type: v })); }}
+          onChange={(v) => { 
+            checkpoint(); 
+            // When changing background type, switch to procedural mode and clear decorations/icons
+            patch(x => ({ ...x, type: v, kind: 'procedural' }));
+            update(p => ({ ...p, decos: [], icons: [] }), false);
+          }}
         />
         <div className="flex items-center gap-3 mt-3">
           <ColorInput value={b.c1} onChange={(v) => { checkpoint(); patch(x => ({ ...x, c1: v })); }} label="base" />
@@ -234,7 +251,11 @@ function BackgroundProps() {
           {PATTERNS.map(pt => (
             <button
               key={pt.id}
-              onClick={() => { checkpoint(); patch(x => ({ ...x, pattern: pt.id as PatternKind })); }}
+              onClick={() => { 
+                checkpoint(); 
+                // When changing pattern, switch to procedural mode
+                patch(x => ({ ...x, pattern: pt.id as PatternKind, kind: 'procedural' }));
+              }}
               className="py-1.5 text-[9.5px] rounded-md border cursor-pointer transition-all"
               style={{
                 fontFamily: 'var(--font-mono)',
@@ -258,7 +279,11 @@ function BackgroundProps() {
           {DECO_SETS.map(ds => (
             <button
               key={ds.id}
-              onClick={() => { checkpoint(); dpatch(x => ({ ...x, set: ds.id })); }}
+              onClick={() => { 
+                checkpoint(); 
+                // When changing decorative shapes, clear existing decorations to avoid duplicates
+                update(p => ({ ...p, decos: [], decoration: { ...p.decoration, set: ds.id } }), false);
+              }}
               className="py-1.5 text-[9.5px] rounded-md border cursor-pointer transition-all"
               style={{
                 fontFamily: 'var(--font-mono)',

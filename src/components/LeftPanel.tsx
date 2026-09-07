@@ -450,11 +450,15 @@ function ImagesTab() {
   const applyImage = (imageId: string) => {
     checkpoint();
     const img = list.find((i: any) => i.id === imageId);
+    // When applying image background, clear existing decorations and icons to avoid duplicates
     update(p => ({
       ...p,
+      decos: [], // Clear decorations
+      icons: [], // Clear icons
       background: {
         ...p.background,
         kind: 'image',
+        style: 'plain', // Reset to plain style for image backgrounds
         image: {
           kind: 'image',
           imageId,
