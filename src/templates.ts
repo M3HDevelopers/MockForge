@@ -366,6 +366,7 @@ export function makeDefaultProject(name: string, type: string, cw: number, ch: n
     exportCount: 0,
     decos: [],
     mood: 'auto',
+    icons: [],
   };
 }
 
@@ -387,6 +388,7 @@ export function migrate(p: any): Project {
     accents: p.accents || { a1: '#ff6b3d', a2: '#45d6c8' },
     text: { ...base.text, ...(p.text || {}) },
     logo: { ...base.logo, ...(p.logo || {}) },
+    icons: p.icons || [],
   };
 }
 

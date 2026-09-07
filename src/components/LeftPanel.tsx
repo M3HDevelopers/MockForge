@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { useStudio, classifyAsset } from '../store';
 import { DECO_PRESETS, DEVICE_META, uid } from '../templates';
@@ -310,7 +310,11 @@ function BackdropTab() {
 }
 
 function BgThumbView({ bg, accents }: { bg: import('../types').Background; accents: { a1: string; a2: string } }) {
-  const src = useMemo(() => bgThumb(bg, accents, 150), [bg, accents]);
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    bgThumb(bg, accents, 150).then(setSrc);
+  }, [bg, accents]);
+  if (!src) return <div className="w-full aspect-[3/2] rounded-lg border border-line bg-panel" />;
   return <img src={src} alt="" className="w-full aspect-[3/2] object-cover rounded-lg border border-line group-hover:border-[#4a4f5c] transition-colors" draggable={false} />;
 }
 

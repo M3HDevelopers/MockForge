@@ -25,6 +25,55 @@ export type Mood =
   | 'editorial' | 'bold' | 'elegant' | 'futuristic' | 'playful' | 'corporate';
 export type SurpriseMode = 'all' | 'background' | 'layout' | 'colors' | 'decor' | 'devices';
 
+/* ================= image background types ================= */
+export type ImageCategory = 'abstract' | '3d' | 'studio' | 'architectural' | 'glass' | 'paper' | 'tech' | 'editorial' | 'custom';
+export type BackgroundKind = 'procedural' | 'image' | 'hybrid';
+export type ImageFit = 'cover' | 'contain' | 'fill' | 'stretch' | 'center';
+export type ImageColorFilter = 'original' | 'grayscale' | 'warm' | 'cool' | 'muted' | 'high' | 'soft' | 'dark' | 'light';
+export type ImageOverlay = 'none' | 'color' | 'gradient' | 'black' | 'white' | 'noise' | 'vignette' | 'light';
+export type ImageMask = 'none' | 'rounded' | 'circle' | 'radial' | 'gradient';
+export type IconBgStyle = 'none' | 'circle' | 'rounded' | 'glass' | 'gradient' | 'badge';
+
+export interface ImageBgState {
+  kind: BackgroundKind;
+  imageId: string | null;
+  customSrc: string | null;
+  fit: ImageFit;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  blur: number;
+  hue: number;
+  colorFilter: ImageColorFilter;
+  tint: string | null;
+  tintOpacity: number;
+  overlay: ImageOverlay;
+  overlayColor: string;
+  overlayOpacity: number;
+  blend: GlobalCompositeOperation;
+  mask: ImageMask;
+}
+
+export interface IconLayer {
+  id: string;
+  iconId: string;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  opacity: number;
+  rotation: number;
+  bgStyle: IconBgStyle;
+  bgColor: string | null;
+  shadow: boolean;
+  glow: boolean;
+}
+
 /* ================= interfaces ================= */
 export interface Asset {
   id: string;
@@ -52,6 +101,9 @@ export interface Background {
   seed: number;
   light: Lighting;
   meshPoints: number; // 3..8
+  /* image background */
+  kind?: BackgroundKind;
+  image?: ImageBgState;
 }
 
 export interface DeviceLayer {
@@ -149,6 +201,7 @@ export interface Project {
   /* new */
   decos: DecoLayer[];
   mood: Mood;
+  icons: IconLayer[];
 }
 
 /* ================= editor state ================= */

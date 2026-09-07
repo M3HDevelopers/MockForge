@@ -23,8 +23,9 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
     if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
     if (depth === 'all') {
-      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
-      drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents).then(() => {
+        drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+      });
     } else {
       drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
     }
