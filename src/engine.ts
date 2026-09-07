@@ -7,6 +7,8 @@ import {
   pick, rngRange, textOn, uid,
 } from './templates';
 import { DECO_PRESETS } from './templates';
+import { IMAGE_ASSETS } from './imageAssets';
+import { ICONS } from './iconLibrary';
 
 /* =========================================================================
    PROCEDURAL COMPOSITION ENGINE
@@ -208,6 +210,12 @@ export interface GenOpts {
   seed: number;
   locks: { devices: boolean; background: boolean; decoration: boolean; text: boolean; logo: boolean };
   deviceCount?: number;
+  bgType?: 'auto' | 'vector' | 'image' | 'hybrid';
+  includeIcons?: boolean;
+  iconCount?: number;
+  includeDeco?: boolean;
+  decoIntensity?: number;
+  includeText?: boolean;
 }
 
 export function generateDesign(base: Project, opts: GenOpts): Project {
@@ -221,23 +229,68 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
   const doDeco = !opts.locks.decoration && (opts.mode === 'all' || opts.mode === 'decor');
   const doText = !opts.locks.text && opts.mode === 'all';
   const doLogo = !opts.locks.logo && opts.mode === 'all';
+  const doIcons = opts.includeIcons !== false && opts.mode === 'all';
 
   /* palette / background */
   if (doBg) {
-    const palIdx = pick(rnd, bias.palettes);
-    const pal = PALETTES[palIdx];
-    let style = pick(rnd, bias.styles);
-    if (!style) style = 'studio';
-    const background: Background = {
-      ...paletteToBg(pal, Math.floor(rnd() * 1e9)),
-      style,
-      angle: pal.angle + Math.floor(rngRange(rnd, -18, 18)),
-      meshPoints: 3 + Math.floor(rnd() * 4),
-      light: { type: pal.light, intensity: rngRange(rnd, 0.4, 0.75) },
-      pattern: rnd() > 0.6 ? pal.pattern : 'none',
-      patternOpacity: pal.po,
-    };
-    p = { ...p, background, accents: { a1: pal.a1, a2: pal.a2 } };
+    const bgType = opts.bgType || 'auto';
+    const useImage = bgType === 'image' || (bgType === 'auto' && rnd() > 0.5) || bgType === 'hybrid';
+    
+    if (useImage) {
+      // Generate image background
+      const compatibleImages = IMAGE_ASSETS.filter((img) => 
+        img.mood.includes(opts.mood) || img.mood.includes('auto')
+      );
+      const selectedImage = compatibleImages.length > 0 
+        ? pick(rnd, compatibleImages)
+        : pick(rnd, IMAGE_ASSETS);
+      
+      const background: Background = {
+        ...p.background,
+        kind: 'image',
+        image: {
+          kind: 'image',
+          imageId: selectedImage.id,
+          customSrc: null,
+          fit: 'cover',
+          x: 0,
+          y: 0,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          brightness: 1,
+          contrast: 1,
+          saturation: 1,
+          blur: 0,
+          hue: 0,
+          colorFilter: 'original',
+          tint: null,
+          tintOpacity: 0,
+          overlay: 'none',
+          overlayColor: '#000000',
+          overlayOpacity: 0,
+          blend: 'source-over',
+          mask: 'none',
+        },
+      };
+      p = { ...p, background };
+    } else {
+      // Generate vector background
+      const palIdx = pick(rnd, bias.palettes);
+      const pal = PALETTES[palIdx];
+      let style = pick(rnd, bias.styles);
+      if (!style) style = 'studio';
+      const background: Background = {
+        ...paletteToBg(pal, Math.floor(rnd() * 1e9)),
+        style,
+        angle: pal.angle + Math.floor(rngRange(rnd, -18, 18)),
+        meshPoints: 3 + Math.floor(rnd() * 4),
+        light: { type: pal.light, intensity: rngRange(rnd, 0.4, 0.75) },
+        pattern: rnd() > 0.6 ? pal.pattern : 'none',
+        patternOpacity: pal.po,
+      };
+      p = { ...p, background, accents: { a1: pal.a1, a2: pal.a2 } };
+    }
   }
 
   /* device arrangement */
@@ -269,15 +322,73 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
   }
 
   /* decorations */
-  if (doDeco) {
+  if (doDeco && opts.includeDeco !== false) {
+    const intensity = (opts.decoIntensity ?? 50) / 100;
     const [lo, hi] = bias.density;
-    const density = rngRange(rnd, lo, hi);
+    const density = rngRange(rnd, lo, hi) * intensity;
     const count = Math.round(clamp(density * 9, 0, 10));
     p = { ...p, decos: placeDecos(p, rnd, bias, count), decoration: { ...p.decoration, density, set: 'none' } };
   }
 
+  /* icons */
+  if (doIcons) {
+    const iconCount = opts.iconCount ?? 3;
+    const icons: import('./types').IconLayer[] = [];
+    const deviceBoxes = p.devices.filter(d => d.visible).map(deviceBox);
+    
+    // Place icons around devices
+    for (let i = 0; i < iconCount; i++) {
+      const iconDef = pick(rnd, ICONS);
+      
+      // Find a position near a device but not overlapping
+      let x = 0, y = 0;
+      let attempts = 0;
+      let valid = false;
+      
+      while (!valid && attempts < 20) {
+        attempts++;
+        if (deviceBoxes.length > 0) {
+          const device = pick(rnd, deviceBoxes);
+          const side = Math.floor(rnd() * 4); // 0: top, 1: right, 2: bottom, 3: left
+          const offset = 0.08 + rnd() * 0.06;
+          
+          if (side === 0) { x = device.x + device.w * (0.2 + rnd() * 0.6); y = device.y - device.h * offset; }
+          else if (side === 1) { x = device.x + device.w + device.w * offset; y = device.y + device.h * (0.2 + rnd() * 0.6); }
+          else if (side === 2) { x = device.x + device.w * (0.2 + rnd() * 0.6); y = device.y + device.h + device.h * offset; }
+          else { x = device.x - device.w * offset; y = device.y + device.h * (0.2 + rnd() * 0.6); }
+        } else {
+          x = rnd() * cw;
+          y = rnd() * ch;
+        }
+        
+        // Check if position is valid (within canvas and not overlapping devices)
+        const iconBox = { x: x - 20, y: y - 20, w: 40, h: 40 };
+        valid = x > 0 && x < cw && y > 0 && y < ch && !deviceBoxes.some(db => overlaps(iconBox, db));
+      }
+      
+      if (valid) {
+        icons.push({
+          id: uid(),
+          iconId: iconDef.id,
+          x: x / cw,
+          y: y / ch,
+          size: 0.06 + rnd() * 0.03,
+          color: p.accents.a1,
+          opacity: 0.7 + rnd() * 0.3,
+          rotation: Math.floor(rnd() * 30 - 15),
+          bgStyle: 'none',
+          bgColor: null,
+          shadow: false,
+          glow: false,
+        });
+      }
+    }
+    
+    p = { ...p, icons };
+  }
+
   /* text & logo placement */
-  if (doText && p.text.enabled) p = { ...p, text: { ...p.text, position: pick(rnd, bias.textPos) } };
+  if (doText && opts.includeText !== false && p.text.enabled) p = { ...p, text: { ...p.text, position: pick(rnd, bias.textPos) } };
   if (doLogo && p.logo.enabled) {
     const lp: PosPreset[] = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
     p = { ...p, logo: { ...p.logo, position: pick(rnd, lp) } };
@@ -288,11 +399,34 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
 }
 
 /** Generate n scored variations of the base design (best-first). */
-export function generateVariations(base: Project, n: number, mood: Mood): Project[] {
+export function generateVariations(base: Project, n: number, mood: Mood, bgType?: 'vector' | 'image' | 'hybrid'): Project[] {
   const out: { p: Project; s: number }[] = [];
   for (let i = 0; i < n; i++) {
     const seed = (Date.now() ^ (i + 1) * 2654435761 ^ Math.floor(Math.random() * 1e9)) >>> 0;
-    const p = generateDesign(base, { mode: 'all', mood, seed, locks: { devices: false, background: false, decoration: false, text: false, logo: false } });
+    
+    // Determine background type for this variation
+    let variationBgType: 'auto' | 'vector' | 'image' | 'hybrid' = 'auto';
+    if (bgType === 'vector') variationBgType = 'vector';
+    else if (bgType === 'image') variationBgType = 'image';
+    else if (bgType === 'hybrid') variationBgType = 'hybrid';
+    else {
+      // Mix of types for variety
+      const types: ('vector' | 'image' | 'hybrid')[] = ['vector', 'image', 'hybrid'];
+      variationBgType = types[i % 3];
+    }
+    
+    const p = generateDesign(base, { 
+      mode: 'all', 
+      mood, 
+      seed, 
+      locks: { devices: false, background: false, decoration: false, text: false, logo: false },
+      bgType: variationBgType,
+      includeIcons: true,
+      iconCount: 2 + (i % 4), // Vary icon count: 2-5
+      includeDeco: true,
+      decoIntensity: 40 + (i % 3) * 20, // Vary intensity: 40-80%
+      includeText: true,
+    });
     out.push({ p, s: scoreDesign(p).total });
   }
   return out.sort((a, b) => b.s - a.s).map(x => x.p);

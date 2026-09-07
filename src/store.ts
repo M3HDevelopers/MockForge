@@ -104,6 +104,15 @@ interface StudioState {
   genOpen: boolean;
   compare: [DesignSnapshot | null, DesignSnapshot | null];
   compareOpen: boolean;
+  generateConfig: {
+    bgType: 'auto' | 'vector' | 'image' | 'hybrid';
+    includeIcons: boolean;
+    iconCount: number;
+    includeDeco: boolean;
+    decoIntensity: number;
+    includeText: boolean;
+  };
+  setGenerateConfig: (config: Partial<StudioState['generateConfig']>) => void;
 
   boot: () => void;
   goto: (v: 'dashboard' | 'editor') => void;
@@ -146,7 +155,7 @@ interface StudioState {
   setMood: (m: Mood) => void;
   toggleLock: (k: keyof GenLocks) => void;
   generate: (mode: SurpriseMode) => void;
-  makeVariations: () => Promise<void>;
+  makeVariations: (type?: 'vector' | 'image' | 'hybrid') => Promise<void>;
   applyVariation: (id: string) => void;
   setVariationsOpen: (v: boolean) => void;
   setGenOpen: (v: boolean) => void;
@@ -203,6 +212,15 @@ export const useStudio = create<StudioState>((set, get) => ({
   genOpen: false,
   compare: [null, null],
   compareOpen: false,
+  generateConfig: {
+    bgType: 'auto',
+    includeIcons: true,
+    iconCount: 3,
+    includeDeco: true,
+    decoIntensity: 50,
+    includeText: true,
+  },
+  setGenerateConfig: (config) => set(s => ({ generateConfig: { ...s.generateConfig, ...config } })),
 
   boot: () => {
     if (get().booted) return;
@@ -498,24 +516,36 @@ export const useStudio = create<StudioState>((set, get) => ({
     const cur = get().project;
     if (!cur) return;
     get().checkpoint();
-    const { mood, locks } = get();
+    const { mood, locks, generateConfig } = get();
     const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-    const next = generateDesign(cur, { mode, mood, seed, locks });
+    const next = generateDesign(cur, { 
+      mode, 
+      mood, 
+      seed, 
+      locks,
+      bgType: generateConfig.bgType,
+      includeIcons: generateConfig.includeIcons,
+      iconCount: generateConfig.iconCount,
+      includeDeco: generateConfig.includeDeco,
+      decoIntensity: generateConfig.decoIntensity,
+      includeText: generateConfig.includeText,
+    });
     set({ project: { ...next, assets: cur.assets }, dirty: true });
     void get().pushHistoryNext();
     const label = mode === 'all' ? 'Surprise me' : `Randomize ${mode}`;
     get().toast(`${label} · score ${scoreDesign(next).total}`, 'info');
   },
 
-  makeVariations: async () => {
+  makeVariations: async (type?: 'vector' | 'image' | 'hybrid') => {
     const cur = get().project;
     if (!cur) return;
-    const list = generateVariations(cur, 10, get().mood);
+    const list = generateVariations(cur, 10, get().mood, type);
     const snaps: DesignSnapshot[] = [];
     for (let i = 0; i < list.length; i++) {
       const p = { ...list[i], assets: cur.assets };
       const thumb = await makeThumbnail(p, 320);
-      snaps.push(snapshot(p, `Variation ${String(i + 1).padStart(2, '0')}`, thumb));
+      const typeLabel = type ? ` (${type})` : '';
+      snaps.push(snapshot(p, `Variation ${String(i + 1).padStart(2, '0')}${typeLabel}`, thumb));
     }
     set({ variations: snaps, variationsOpen: true });
   },

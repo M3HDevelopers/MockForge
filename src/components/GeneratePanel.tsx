@@ -65,14 +65,8 @@ function GenerateTab() {
   const generate = useStudio(s => s.generate);
   const setOpen = useStudio(s => s.setGenOpen);
   const score = useStudio(s => s.project ? scoreDesign(s.project).total : 0);
-  
-  // Element configuration state
-  const [bgType, setBgType] = useState<'auto' | 'vector' | 'image' | 'hybrid'>('auto');
-  const [includeIcons, setIncludeIcons] = useState(true);
-  const [includeDeco, setIncludeDeco] = useState(true);
-  const [includeText, setIncludeText] = useState(true);
-  const [iconCount, setIconCount] = useState(3);
-  const [decoIntensity, setDecoIntensity] = useState(50);
+  const generateConfig = useStudio(s => s.generateConfig);
+  const setGenerateConfig = useStudio(s => s.setGenerateConfig);
 
   return (
     <div className="grid grid-cols-[1fr_300px] gap-0">
@@ -90,8 +84,8 @@ function GenerateTab() {
             {(['auto', 'vector', 'image', 'hybrid'] as const).map(type => (
               <button
                 key={type}
-                onClick={() => setBgType(type)}
-                className={`p-3 rounded-lg border transition-all ${bgType === type ? 'border-acc bg-acc/10' : 'border-line hover:border-line2'}`}
+                onClick={() => setGenerateConfig({ bgType: type })}
+                className={`p-3 rounded-lg border transition-all ${generateConfig.bgType === type ? 'border-acc bg-acc/10' : 'border-line hover:border-line2'}`}
               >
                 <div className="text-[12px] font-medium capitalize">{type}</div>
                 <div className="text-[10px] text-dim mt-0.5">
@@ -115,22 +109,22 @@ function GenerateTab() {
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={includeIcons}
-                  onChange={(e) => setIncludeIcons(e.target.checked)}
+                  checked={generateConfig.includeIcons}
+                  onChange={(e) => setGenerateConfig({ includeIcons: e.target.checked })}
                   className="w-4 h-4 accent-acc"
                 />
-                {includeIcons && (
+                {generateConfig.includeIcons && (
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-dim">Count:</span>
                     <input
                       type="range"
                       min="1"
                       max="8"
-                      value={iconCount}
-                      onChange={(e) => setIconCount(parseInt(e.target.value))}
+                      value={generateConfig.iconCount}
+                      onChange={(e) => setGenerateConfig({ iconCount: parseInt(e.target.value) })}
                       className="w-20"
                     />
-                    <span className="text-[11px] font-mono w-4">{iconCount}</span>
+                    <span className="text-[11px] font-mono w-4">{generateConfig.iconCount}</span>
                   </div>
                 )}
               </div>
@@ -144,22 +138,22 @@ function GenerateTab() {
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={includeDeco}
-                  onChange={(e) => setIncludeDeco(e.target.checked)}
+                  checked={generateConfig.includeDeco}
+                  onChange={(e) => setGenerateConfig({ includeDeco: e.target.checked })}
                   className="w-4 h-4 accent-acc"
                 />
-                {includeDeco && (
+                {generateConfig.includeDeco && (
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-dim">Intensity:</span>
                     <input
                       type="range"
                       min="0"
                       max="100"
-                      value={decoIntensity}
-                      onChange={(e) => setDecoIntensity(parseInt(e.target.value))}
+                      value={generateConfig.decoIntensity}
+                      onChange={(e) => setGenerateConfig({ decoIntensity: parseInt(e.target.value) })}
                       className="w-20"
                     />
-                    <span className="text-[11px] font-mono w-6">{decoIntensity}%</span>
+                    <span className="text-[11px] font-mono w-6">{generateConfig.decoIntensity}%</span>
                   </div>
                 )}
               </div>
@@ -172,8 +166,8 @@ function GenerateTab() {
               </div>
               <input
                 type="checkbox"
-                checked={includeText}
-                onChange={(e) => setIncludeText(e.target.checked)}
+                checked={generateConfig.includeText}
+                onChange={(e) => setGenerateConfig({ includeText: e.target.checked })}
                 className="w-4 h-4 accent-acc"
               />
             </div>
@@ -248,10 +242,11 @@ function VariationsTab() {
   const makeVariations = useStudio(s => s.makeVariations);
   const applyVariation = useStudio(s => s.applyVariation);
   const [busy, setBusy] = useState(false);
+  const [varType, setVarType] = useState<'mixed' | 'vector' | 'image' | 'hybrid'>('mixed');
 
   const gen = async () => {
     setBusy(true);
-    await makeVariations();
+    await makeVariations(varType === 'mixed' ? undefined : varType);
     setBusy(false);
   };
 
@@ -266,6 +261,27 @@ function VariationsTab() {
           {busy ? <IcSpin size={14} /> : <IcRefresh size={14} />}
           {variations.length ? 'Generate more' : 'Generate 10'}
         </button>
+      </div>
+
+      <div className="mb-4">
+        <div className="label-mono mb-2">Variation type</div>
+        <div className="grid grid-cols-4 gap-2">
+          {(['mixed', 'vector', 'image', 'hybrid'] as const).map(type => (
+            <button
+              key={type}
+              onClick={() => setVarType(type)}
+              className={`p-2.5 rounded-lg border transition-all text-left ${varType === type ? 'border-acc bg-acc/10' : 'border-line hover:border-line2'}`}
+            >
+              <div className="text-[11px] font-medium capitalize">{type}</div>
+              <div className="text-[9px] text-dim mt-0.5">
+                {type === 'mixed' && 'All types'}
+                {type === 'vector' && 'Vector only'}
+                {type === 'image' && 'Image only'}
+                {type === 'hybrid' && 'Vector + Image'}
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {variations.length === 0 && !busy && (
