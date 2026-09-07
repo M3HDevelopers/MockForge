@@ -426,6 +426,99 @@ async function drawLogo(ctx: CanvasRenderingContext2D, p: Project) {
   } catch { /* skip logo */ }
 }
 
+/* ---------------- icons ---------------- */
+import { ICONS } from './iconLibrary';
+
+function drawIcons(ctx: CanvasRenderingContext2D, p: Project) {
+  if (!p.icons || p.icons.length === 0) return;
+  
+  for (const icon of p.icons) {
+    const iconDef = ICONS.find(i => i.id === icon.iconId);
+    if (!iconDef) continue;
+    
+    const size = icon.size * Math.min(p.canvas.w, p.canvas.h);
+    const x = icon.x * p.canvas.w - size / 2;
+    const y = icon.y * p.canvas.h - size / 2;
+    
+    ctx.save();
+    ctx.globalAlpha = icon.opacity;
+    ctx.translate(x + size / 2, y + size / 2);
+    ctx.rotate((icon.rotation * Math.PI) / 180);
+    ctx.translate(-size / 2, -size / 2);
+    
+    // Draw background if enabled
+    if (icon.bgStyle !== 'none' && icon.bgColor) {
+      const bgColor = icon.bgColor;
+      const bgPadding = size * 0.2;
+      
+      if (icon.bgStyle === 'circle') {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (icon.bgStyle === 'rounded') {
+        ctx.fillStyle = bgColor;
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.fill();
+      } else if (icon.bgStyle === 'glass') {
+        ctx.fillStyle = bgColor + '33';
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.fill();
+        ctx.strokeStyle = bgColor + '66';
+        ctx.lineWidth = 1;
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.stroke();
+      } else if (icon.bgStyle === 'gradient') {
+        const grad = ctx.createLinearGradient(0, 0, size, size);
+        grad.addColorStop(0, bgColor + '88');
+        grad.addColorStop(1, bgColor);
+        ctx.fillStyle = grad;
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.fill();
+      } else if (icon.bgStyle === 'badge') {
+        ctx.fillStyle = bgColor;
+        rr(ctx, 0, 0, size, size, size * 0.08);
+        ctx.fill();
+      }
+    }
+    
+    // Draw icon
+    ctx.strokeStyle = icon.color;
+    ctx.lineWidth = 1.7;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    const padding = icon.bgStyle !== 'none' ? size * 0.2 : 0;
+    const iconSize = size - padding * 2;
+    const scale = iconSize / 24;
+    
+    ctx.translate(padding, padding);
+    ctx.scale(scale, scale);
+    
+    // Parse and draw SVG path
+    const path = new Path2D(iconDef.d);
+    ctx.stroke(path);
+    
+    // Add glow if enabled
+    if (icon.glow) {
+      ctx.shadowColor = icon.color;
+      ctx.shadowBlur = 12;
+      ctx.stroke(path);
+    }
+    
+    // Add shadow if enabled
+    if (icon.shadow) {
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.stroke(path);
+    }
+    
+    ctx.restore();
+  }
+}
+
 /* ---------------- main ---------------- */
 export async function renderProject(p: Project, opts: { scale?: number; transparent?: boolean } = {}): Promise<HTMLCanvasElement> {
   await ensureFonts();
@@ -453,6 +546,11 @@ export async function renderProject(p: Project, opts: { scale?: number; transpar
   }
 
   if (!transparent && hasLayers) drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
+
+  // Draw icons
+  if (p.icons && p.icons.length > 0) {
+    drawIcons(ctx, p);
+  }
 
   await drawLogo(ctx, p);
   drawTextBlock(ctx, p);

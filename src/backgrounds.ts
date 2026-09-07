@@ -97,8 +97,8 @@ function paintAdvancedPatterns(ctx: CanvasRenderingContext2D, b: Background, w: 
   const ink = dark ? '#ffffff' : '#15171c';
   const min = Math.min(w, h);
   
-  // Randomly select pattern type - more variety with 12 patterns
-  const patternType = Math.floor(rnd() * 12);
+  // Randomly select pattern type - more variety with 20 patterns
+  const patternType = Math.floor(rnd() * 20);
   
   ctx.save();
   ctx.globalAlpha = 0.15 + rnd() * 0.2;
@@ -309,6 +309,155 @@ function paintAdvancedPatterns(ctx: CanvasRenderingContext2D, b: Background, w: 
           ctx.lineTo(x, y);
         }
         ctx.stroke();
+      }
+      break;
+      
+    case 12: // Isometric grid
+      const isoSize = 60 + rnd() * 40;
+      ctx.strokeStyle = rgba(accents.a1, 0.25);
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += isoSize) {
+        for (let y = 0; y < h; y += isoSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + isoSize / 2, y - isoSize / 2);
+          ctx.lineTo(x + isoSize, y);
+          ctx.lineTo(x + isoSize / 2, y + isoSize / 2);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+      
+    case 13: // Particle field
+      const particles = 100 + Math.floor(rnd() * 100);
+      for (let i = 0; i < particles; i++) {
+        const px = rnd() * w;
+        const py = rnd() * h;
+        const pr = 1 + rnd() * 3;
+        ctx.fillStyle = i % 2 === 0 ? rgba(accents.a1, 0.4) : rgba(accents.a2, 0.4);
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Connect nearby particles
+      ctx.strokeStyle = rgba(accents.a1, 0.1);
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < particles; i++) {
+        for (let j = i + 1; j < particles; j++) {
+          const dist = Math.hypot(rnd() * w - rnd() * w, rnd() * h - rnd() * h);
+          if (dist < min * 0.1) {
+            ctx.beginPath();
+            ctx.moveTo(rnd() * w, rnd() * h);
+            ctx.lineTo(rnd() * w, rnd() * h);
+            ctx.stroke();
+          }
+        }
+      }
+      break;
+      
+    case 14: // Wave interference
+      for (let i = 0; i < 8; i++) {
+        const waveX = rnd() * w;
+        const waveY = rnd() * h;
+        ctx.strokeStyle = i % 2 === 0 ? rgba(accents.a1, 0.2) : rgba(accents.a2, 0.2);
+        ctx.lineWidth = 1;
+        for (let r = 0; r < min * 0.4; r += 10) {
+          ctx.beginPath();
+          ctx.arc(waveX, waveY, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      break;
+      
+    case 15: // Abstract mesh
+      const meshPoints: [number, number][] = [];
+      for (let i = 0; i < 20; i++) {
+        meshPoints.push([rnd() * w, rnd() * h]);
+      }
+      ctx.strokeStyle = rgba(accents.a1, 0.15);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < meshPoints.length; i++) {
+        for (let j = i + 1; j < meshPoints.length; j++) {
+          const dist = Math.hypot(meshPoints[i][0] - meshPoints[j][0], meshPoints[i][1] - meshPoints[j][1]);
+          if (dist < min * 0.3) {
+            ctx.beginPath();
+            ctx.moveTo(meshPoints[i][0], meshPoints[i][1]);
+            ctx.lineTo(meshPoints[j][0], meshPoints[j][1]);
+            ctx.stroke();
+          }
+        }
+      }
+      // Draw points
+      for (const [px, py] of meshPoints) {
+        ctx.fillStyle = accents.a1;
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+      
+    case 16: // Geometric tessellation
+      const tileSize = 80 + rnd() * 40;
+      for (let x = 0; x < w; x += tileSize) {
+        for (let y = 0; y < h; y += tileSize) {
+          ctx.strokeStyle = rnd() > 0.5 ? rgba(accents.a1, 0.2) : rgba(accents.a2, 0.2);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + tileSize, y);
+          ctx.lineTo(x + tileSize / 2, y + tileSize);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+      
+    case 17: // Circular flow
+      const flowCenterX = w * (0.3 + rnd() * 0.4);
+      const flowCenterY = h * (0.3 + rnd() * 0.4);
+      for (let i = 0; i < 30; i++) {
+        const angle = (Math.PI * 2 / 30) * i;
+        const radius = min * (0.1 + rnd() * 0.3);
+        ctx.strokeStyle = i % 2 === 0 ? rgba(accents.a1, 0.25) : rgba(accents.a2, 0.25);
+        ctx.lineWidth = 1 + rnd() * 2;
+        ctx.beginPath();
+        ctx.arc(flowCenterX, flowCenterY, radius, angle, angle + Math.PI * 0.5);
+        ctx.stroke();
+      }
+      break;
+      
+    case 18: // Abstract lines
+      const lineCount = 15 + Math.floor(rnd() * 10);
+      for (let i = 0; i < lineCount; i++) {
+        const startX = rnd() * w;
+        const startY = rnd() * h;
+        const endX = rnd() * w;
+        const endY = rnd() * h;
+        ctx.strokeStyle = i % 2 === 0 ? rgba(accents.a1, 0.3) : rgba(accents.a2, 0.3);
+        ctx.lineWidth = 1 + rnd() * 3;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.bezierCurveTo(
+          startX + rnd() * 100 - 50, startY + rnd() * 100 - 50,
+          endX + rnd() * 100 - 50, endY + rnd() * 100 - 50,
+          endX, endY
+        );
+        ctx.stroke();
+      }
+      break;
+      
+    case 19: // Gradient orbs
+      const orbCount = 5 + Math.floor(rnd() * 5);
+      for (let i = 0; i < orbCount; i++) {
+        const orbX = rnd() * w;
+        const orbY = rnd() * h;
+        const orbR = min * (0.1 + rnd() * 0.2);
+        const grad = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, orbR);
+        grad.addColorStop(0, i % 2 === 0 ? rgba(accents.a1, 0.4) : rgba(accents.a2, 0.4));
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(orbX - orbR, orbY - orbR, orbR * 2, orbR * 2);
       }
       break;
   }
