@@ -151,6 +151,9 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
   if (!iconDef) return null;
 
   const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
   const selected = useStudio(s => s.selection?.kind === 'icon' && s.selection.id === icon.id);
   
   const size = icon.size * Math.min(canvasW, canvasH);
@@ -159,6 +162,31 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
 
   const bgColor = icon.bgColor || '#ffffff';
   const bgPadding = size * 0.2;
+
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'icon', id: icon.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
+  };
+
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      icons: p.icons.map(i => i.id === icon.id ? { ...i, x: drag.ox + dx, y: drag.oy + dy } : i)
+    }), false);
+  };
+
+  const onUp = () => {
+    dragRef.current = null;
+  };
 
   return (
     <div
@@ -171,20 +199,29 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
         transform: `rotate(${icon.rotation}deg)`,
         opacity: icon.opacity,
       }}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        setSelection({ kind: 'icon', id: icon.id });
-      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
     >
       {/* Background */}
       {icon.bgStyle !== 'none' && (
         <div
           className="absolute inset-0"
           style={{
-            background: icon.bgStyle === 'circle' ? bgColor : icon.bgStyle === 'rounded' ? bgColor : 'transparent',
-            borderRadius: icon.bgStyle === 'circle' ? '50%' : icon.bgStyle === 'rounded' ? '20%' : icon.bgStyle === 'glass' ? '20%' : '0',
-            padding: bgPadding,
-            boxShadow: icon.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
+            background: icon.bgStyle === 'gradient' 
+              ? `linear-gradient(135deg, ${bgColor}88, ${bgColor})`
+              : icon.bgStyle === 'glass'
+              ? `${bgColor}33`
+              : bgColor,
+            borderRadius: icon.bgStyle === 'circle' ? '50%' : icon.bgStyle === 'rounded' || icon.bgStyle === 'glass' ? '20%' : icon.bgStyle === 'badge' ? '8px' : '0',
+            backdropFilter: icon.bgStyle === 'glass' ? 'blur(8px)' : undefined,
+            border: icon.bgStyle === 'glass' ? `1px solid ${bgColor}66` : undefined,
+            boxShadow: icon.shadow 
+              ? '0 4px 12px rgba(0,0,0,0.3)' 
+              : icon.bgStyle === 'glass'
+              ? '0 2px 8px rgba(0,0,0,0.1)'
+              : undefined,
             filter: icon.glow ? `drop-shadow(0 0 8px ${bgColor})` : undefined,
           }}
         />
@@ -200,8 +237,12 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="relative z-10"
-        style={{ padding: icon.bgStyle !== 'none' ? bgPadding : 0 }}
+        className="absolute inset-0 z-10"
+        style={{ 
+          padding: icon.bgStyle !== 'none' ? bgPadding : 0,
+          width: size,
+          height: size,
+        }}
       >
         <path d={iconDef.d} />
       </svg>
