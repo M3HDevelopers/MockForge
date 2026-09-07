@@ -32,27 +32,51 @@ export function LeftPanel() {
   ];
   return (
     <div className="w-[264px] shrink-0 border-r border-line2 bg-panel flex flex-col">
-      <div className="flex border-b border-line2 px-1.5 pt-2 gap-0.5">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          const on = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 px-2.5 py-2 text-[11.5px] font-medium transition-all duration-150"
-              style={{
-                borderRadius: '7px 7px 0 0',
-                color: on ? 'var(--color-fg)' : 'var(--color-dim)',
-                background: on ? 'var(--color-ink)' : 'transparent',
-                boxShadow: on ? 'inset 0 2px 0 var(--color-acc)' : 'none',
-              }}
-            >
-              <Icon size={13} />
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="border-b border-line2 px-1.5 pt-2 pb-1">
+        <div className="flex gap-0.5 mb-1">
+          {tabs.slice(0, 3).map(t => {
+            const Icon = t.icon;
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10.5px] font-medium transition-all duration-150"
+                style={{
+                  borderRadius: '6px 6px 0 0',
+                  color: on ? 'var(--color-fg)' : 'var(--color-dim)',
+                  background: on ? 'var(--color-ink)' : 'transparent',
+                  boxShadow: on ? 'inset 0 2px 0 var(--color-acc)' : 'none',
+                }}
+              >
+                <Icon size={12} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-0.5">
+          {tabs.slice(3).map(t => {
+            const Icon = t.icon;
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10.5px] font-medium transition-all duration-150"
+                style={{
+                  borderRadius: '6px 6px 0 0',
+                  color: on ? 'var(--color-fg)' : 'var(--color-dim)',
+                  background: on ? 'var(--color-ink)' : 'transparent',
+                  boxShadow: on ? 'inset 0 2px 0 var(--color-acc)' : 'none',
+                }}
+              >
+                <Icon size={12} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto bg-ink">
         {tab === 'screens' && <ScreensTab />}
