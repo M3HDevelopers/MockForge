@@ -5,7 +5,7 @@ import { scoreDesign } from '../engine';
 import { Section } from './ui';
 import { IcClose, IcCompare, IcDice, IcGrid, IcHeart, IcLock, IcSpin, IcStar, IcTrash, IcUnlock, IcWand, IcLayers, IcRefresh } from '../icons';
 
-const MOODS: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate'];
+const MOODS: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate', 'luxury', 'impact', 'technical'];
 const MODES: { id: SurpriseMode; label: string; desc: string }[] = [
   { id: 'all', label: 'Surprise me', desc: 'Full composition' },
   { id: 'background', label: 'Background', desc: 'Backdrop only' },
@@ -65,6 +65,8 @@ function GenerateTab() {
   const generate = useStudio(s => s.generate);
   const setOpen = useStudio(s => s.setGenOpen);
   const score = useStudio(s => s.project ? scoreDesign(s.project).total : 0);
+  const generateConfig = useStudio(s => s.generateConfig);
+  const setGenerateConfig = useStudio(s => s.setGenerateConfig);
 
   return (
     <div className="grid grid-cols-[1fr_300px] gap-0">
@@ -77,18 +79,98 @@ function GenerateTab() {
           </div>
         </Section>
 
-        <Section title="What to randomize">
-          <div className="grid grid-cols-3 gap-1.5">
-            {MODES.map(m => (
+        <Section title="Background type">
+          <div className="grid grid-cols-4 gap-2">
+            {(['auto', 'vector', 'image', 'hybrid'] as const).map(type => (
               <button
-                key={m.id}
-                onClick={() => { generate(m.id); }}
-                className="flex flex-col items-start gap-0.5 p-3 rounded-lg border border-line bg-ink hover:border-acc/50 hover:bg-panel2 transition-all text-left group"
+                key={type}
+                onClick={() => setGenerateConfig({ bgType: type })}
+                className={`p-3 rounded-lg border transition-all ${generateConfig.bgType === type ? 'border-acc bg-acc/10' : 'border-line hover:border-line2'}`}
               >
-                <span className="text-[12.5px] font-medium group-hover:text-acc transition-colors">{m.label}</span>
-                <span className="text-[10px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{m.desc}</span>
+                <div className="text-[12px] font-medium capitalize">{type}</div>
+                <div className="text-[10px] text-dim mt-0.5">
+                  {type === 'auto' && 'Smart selection'}
+                  {type === 'vector' && 'Procedural only'}
+                  {type === 'image' && 'Image backgrounds'}
+                  {type === 'hybrid' && 'Vector + Image'}
+                </div>
               </button>
             ))}
+          </div>
+        </Section>
+
+        <Section title="Elements to include">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-medium">Icons</div>
+                <div className="text-[10px] text-dim">Add tech icons around devices</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={generateConfig.includeIcons}
+                  onChange={(e) => setGenerateConfig({ includeIcons: e.target.checked })}
+                  className="w-4 h-4 accent-acc"
+                />
+                {generateConfig.includeIcons && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-dim">Count:</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="8"
+                      value={generateConfig.iconCount}
+                      onChange={(e) => setGenerateConfig({ iconCount: parseInt(e.target.value) })}
+                      className="w-20"
+                    />
+                    <span className="text-[11px] font-mono w-4">{generateConfig.iconCount}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-medium">Decorations</div>
+                <div className="text-[10px] text-dim">Add decorative shapes</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={generateConfig.includeDeco}
+                  onChange={(e) => setGenerateConfig({ includeDeco: e.target.checked })}
+                  className="w-4 h-4 accent-acc"
+                />
+                {generateConfig.includeDeco && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-dim">Intensity:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={generateConfig.decoIntensity}
+                      onChange={(e) => setGenerateConfig({ decoIntensity: parseInt(e.target.value) })}
+                      className="w-20"
+                    />
+                    <span className="text-[11px] font-mono w-6">{generateConfig.decoIntensity}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-medium">Text & Badges</div>
+                <div className="text-[10px] text-dim">Add title and tech badges</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={generateConfig.includeText}
+                onChange={(e) => setGenerateConfig({ includeText: e.target.checked })}
+                className="w-4 h-4 accent-acc"
+              />
+            </div>
           </div>
         </Section>
 
@@ -141,36 +223,76 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 function VariationsTab() {
-  const variations = useStudio(s => s.variations);
+  const [activeTab, setActiveTab] = useState<'vector' | 'image' | 'mixed'>('vector');
+  const [variations, setVariations] = useState<{
+    vector: DesignSnapshot[];
+    image: DesignSnapshot[];
+    mixed: DesignSnapshot[];
+  }>({ vector: [], image: [], mixed: [] });
+  const [busy, setBusy] = useState(false);
   const makeVariations = useStudio(s => s.makeVariations);
   const applyVariation = useStudio(s => s.applyVariation);
-  const [busy, setBusy] = useState(false);
 
   const gen = async () => {
     setBusy(true);
-    await makeVariations();
+    const type = activeTab === 'mixed' ? undefined : activeTab;
+    const newVariations = await makeVariations(type);
+    setVariations(prev => ({ ...prev, [activeTab]: newVariations }));
     setBusy(false);
   };
 
+  const currentVariations = variations[activeTab];
+
   return (
     <div className="p-5">
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        {(['vector', 'image', 'mixed'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-[13px] transition-all ${
+              activeTab === tab
+                ? 'bg-acc text-white shadow-lg'
+                : 'bg-panel2 text-mut hover:bg-panel3'
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {variations[tab].length > 0 && (
+              <span className="ml-2 text-[10px] opacity-70">({variations[tab].length})</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: 15 }}>Generate 10 variations</div>
-          <div className="text-[11px] mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>scored best-first · click one to apply</div>
+          <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: 15 }}>
+            Generate 10 {activeTab} variations
+          </div>
+          <div className="text-[11px] mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+            {activeTab === 'vector' && 'All procedural vector backgrounds'}
+            {activeTab === 'image' && 'All high-resolution image backgrounds'}
+            {activeTab === 'mixed' && 'Mix of vector and image backgrounds'}
+          </div>
         </div>
         <button className="btn btn-acc" onClick={gen} disabled={busy}>
           {busy ? <IcSpin size={14} /> : <IcRefresh size={14} />}
-          {variations.length ? 'Generate more' : 'Generate 10'}
+          {currentVariations.length ? 'Generate more' : 'Generate 10'}
         </button>
       </div>
 
-      {variations.length === 0 && !busy && (
+      {/* Content */}
+      {currentVariations.length === 0 && !busy && (
         <div className="py-16 text-center">
           <div className="mx-auto mb-3 w-fit text-dim"><IcGrid size={30} /></div>
-          <p className="text-[12.5px] text-mut">No variations yet. Generate a batch to explore directions.</p>
+          <p className="text-[12.5px] text-mut">
+            No {activeTab} variations yet. Click generate to create 10 variations.
+          </p>
         </div>
       )}
+
       {busy && (
         <div className="grid grid-cols-5 gap-3">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -178,9 +300,10 @@ function VariationsTab() {
           ))}
         </div>
       )}
-      {!busy && variations.length > 0 && (
+
+      {!busy && currentVariations.length > 0 && (
         <div className="grid grid-cols-5 gap-3 stagger">
-          {variations.map(v => (
+          {currentVariations.map(v => (
             <button key={v.id} onClick={() => applyVariation(v.id)} className="group text-left">
               <div className="relative rounded-lg overflow-hidden border border-line group-hover:border-acc transition-colors">
                 <img src={v.thumb} alt={v.label} className="w-full aspect-[8/5] object-cover" />

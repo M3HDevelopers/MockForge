@@ -90,12 +90,174 @@ function paintBase(ctx: CanvasRenderingContext2D, b: Background, w: number, h: n
   }
 }
 
+/* ---------------- advanced vector patterns ---------------- */
+function paintAdvancedPatterns(ctx: CanvasRenderingContext2D, b: Background, w: number, h: number, accents: { a1: string; a2: string }) {
+  const rnd = mulberry32((b.seed || 7) * 31337);
+  const dark = isDark(b.c1);
+  const ink = dark ? '#ffffff' : '#15171c';
+  const min = Math.min(w, h);
+  
+  // Randomly select pattern type
+  const patternType = Math.floor(rnd() * 8);
+  
+  ctx.save();
+  ctx.globalAlpha = 0.15 + rnd() * 0.2;
+  
+  switch (patternType) {
+    case 0: // Flowing waves
+      for (let i = 0; i < 5; i++) {
+        ctx.strokeStyle = i % 2 === 0 ? accents.a1 : accents.a2;
+        ctx.lineWidth = 2 + rnd() * 3;
+        ctx.beginPath();
+        const yOffset = h * (0.2 + i * 0.15);
+        for (let x = 0; x <= w; x += 10) {
+          const y = yOffset + Math.sin((x / w) * Math.PI * (2 + rnd() * 3) + i) * (30 + rnd() * 40);
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      break;
+      
+    case 1: // Geometric shapes
+      for (let i = 0; i < 12; i++) {
+        const x = rnd() * w;
+        const y = rnd() * h;
+        const size = 30 + rnd() * 80;
+        ctx.strokeStyle = i % 2 === 0 ? accents.a1 : accents.a2;
+        ctx.lineWidth = 1.5;
+        
+        if (rnd() > 0.5) {
+          // Circle
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          // Triangle
+          ctx.beginPath();
+          ctx.moveTo(x, y - size);
+          ctx.lineTo(x + size, y + size);
+          ctx.lineTo(x - size, y + size);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+      
+    case 2: // Dots grid
+      const spacing = 40 + rnd() * 30;
+      for (let x = spacing; x < w; x += spacing) {
+        for (let y = spacing; y < h; y += spacing) {
+          if (rnd() > 0.7) {
+            ctx.fillStyle = rnd() > 0.5 ? accents.a1 : accents.a2;
+            ctx.beginPath();
+            ctx.arc(x, y, 2 + rnd() * 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      break;
+      
+    case 3: // Diagonal lines
+      ctx.strokeStyle = accents.a1;
+      ctx.lineWidth = 1;
+      for (let i = -h; i < w + h; i += 30 + rnd() * 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + h, h);
+        ctx.stroke();
+      }
+      break;
+      
+    case 4: // Concentric circles
+      const centerX = w * (0.3 + rnd() * 0.4);
+      const centerY = h * (0.3 + rnd() * 0.4);
+      for (let i = 0; i < 8; i++) {
+        ctx.strokeStyle = i % 2 === 0 ? accents.a1 : accents.a2;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, (i + 1) * (min * 0.08), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+      
+    case 5: // Hexagonal pattern
+      const hexSize = 40 + rnd() * 30;
+      const hexH = hexSize * Math.sqrt(3);
+      for (let row = 0; row < h / hexH + 1; row++) {
+        for (let col = 0; col < w / (hexSize * 1.5) + 1; col++) {
+          const x = col * hexSize * 1.5;
+          const y = row * hexH + (col % 2) * hexH / 2;
+          if (rnd() > 0.8) {
+            ctx.strokeStyle = rnd() > 0.5 ? accents.a1 : accents.a2;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const angle = (Math.PI / 3) * i;
+              const px = x + hexSize * Math.cos(angle);
+              const py = y + hexSize * Math.sin(angle);
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      }
+      break;
+      
+    case 6: // Organic blobs
+      for (let i = 0; i < 6; i++) {
+        const x = rnd() * w;
+        const y = rnd() * h;
+        const radius = 50 + rnd() * 100;
+        ctx.fillStyle = i % 2 === 0 ? rgba(accents.a1, 0.3) : rgba(accents.a2, 0.3);
+        ctx.beginPath();
+        for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+          const r = radius + Math.sin(angle * 3 + i) * 20;
+          const px = x + r * Math.cos(angle);
+          const py = y + r * Math.sin(angle);
+          if (angle === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+      
+    case 7: // Cross pattern
+      const crossSize = 20 + rnd() * 30;
+      for (let x = crossSize; x < w; x += crossSize * 2) {
+        for (let y = crossSize; y < h; y += crossSize * 2) {
+          if (rnd() > 0.85) {
+            ctx.strokeStyle = rnd() > 0.5 ? accents.a1 : accents.a2;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - crossSize / 2, y);
+            ctx.lineTo(x + crossSize / 2, y);
+            ctx.moveTo(x, y - crossSize / 2);
+            ctx.lineTo(x, y + crossSize / 2);
+            ctx.stroke();
+          }
+        }
+      }
+      break;
+  }
+  
+  ctx.restore();
+}
+
 /* ---------------- style artwork ---------------- */
 function paintStyle(ctx: CanvasRenderingContext2D, style: BgStyle, b: Background, w: number, h: number, accents: { a1: string; a2: string }) {
   const rnd = mulberry32((b.seed || 7) ^ style.length * 7919);
   const dark = isDark(b.c1);
   const ink = dark ? '#ffffff' : '#15171c';
   const min = Math.min(w, h);
+
+  // Add advanced patterns for more variety
+  if (style === 'abstract' || style === 'studio') {
+    paintAdvancedPatterns(ctx, b, w, h, accents);
+  }
 
   switch (style) {
     case 'studio': {

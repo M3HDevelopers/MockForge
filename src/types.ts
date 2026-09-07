@@ -22,7 +22,8 @@ export type DecoPrim =
 export type DecoDepth = 'back' | 'front';
 export type Mood =
   | 'auto' | 'minimal' | 'premium' | 'creative' | 'developer' | 'dark' | 'light'
-  | 'editorial' | 'bold' | 'elegant' | 'futuristic' | 'playful' | 'corporate';
+  | 'editorial' | 'bold' | 'elegant' | 'futuristic' | 'playful' | 'corporate'
+  | 'luxury' | 'impact' | 'technical';
 export type SurpriseMode = 'all' | 'background' | 'layout' | 'colors' | 'decor' | 'devices';
 
 /* ================= image background types ================= */

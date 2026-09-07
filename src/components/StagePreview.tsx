@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as RPointerEvent, DragEvent as RDragEvent } from 'react';
 import { useStudio } from '../store';
-import type { Background, DeviceLayer, Project } from '../types';
+import type { Background, DeviceLayer, IconLayer as IconLayerType, Project } from '../types';
 import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn } from '../templates';
 import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
+import { ICONS } from '../iconLibrary';
 
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
@@ -145,6 +146,110 @@ function LogoOverlay({ p }: { p: Project }) {
   );
 }
 
+function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: number; canvasH: number }) {
+  const iconDef = ICONS.find((i) => i.id === icon.iconId);
+  if (!iconDef) return null;
+
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'icon' && s.selection.id === icon.id);
+  
+  const size = icon.size * Math.min(canvasW, canvasH);
+  const x = icon.x * canvasW - size / 2;
+  const y = icon.y * canvasH - size / 2;
+
+  const bgColor = icon.bgColor || '#ffffff';
+  const bgPadding = size * 0.2;
+
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'icon', id: icon.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
+  };
+
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      icons: p.icons.map(i => i.id === icon.id ? { ...i, x: drag.ox + dx, y: drag.oy + dy } : i)
+    }), false);
+  };
+
+  const onUp = () => {
+    dragRef.current = null;
+  };
+
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        transform: `rotate(${icon.rotation}deg)`,
+        opacity: icon.opacity,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      {/* Background */}
+      {icon.bgStyle !== 'none' && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: icon.bgStyle === 'gradient' 
+              ? `linear-gradient(135deg, ${bgColor}88, ${bgColor})`
+              : icon.bgStyle === 'glass'
+              ? `${bgColor}33`
+              : bgColor,
+            borderRadius: icon.bgStyle === 'circle' ? '50%' : icon.bgStyle === 'rounded' || icon.bgStyle === 'glass' ? '20%' : icon.bgStyle === 'badge' ? '8px' : '0',
+            backdropFilter: icon.bgStyle === 'glass' ? 'blur(8px)' : undefined,
+            border: icon.bgStyle === 'glass' ? `1px solid ${bgColor}66` : undefined,
+            boxShadow: icon.shadow 
+              ? '0 4px 12px rgba(0,0,0,0.3)' 
+              : icon.bgStyle === 'glass'
+              ? '0 2px 8px rgba(0,0,0,0.1)'
+              : undefined,
+            filter: icon.glow ? `drop-shadow(0 0 8px ${bgColor})` : undefined,
+          }}
+        />
+      )}
+      
+      {/* Icon SVG */}
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={icon.color}
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="absolute inset-0 z-10"
+        style={{ 
+          padding: icon.bgStyle !== 'none' ? bgPadding : 0,
+          width: size,
+          height: size,
+        }}
+      >
+        <path d={iconDef.d} />
+      </svg>
+    </div>
+  );
+}
+
 function DeviceNode({ d, guides, setGuides }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
@@ -273,6 +378,9 @@ export function StagePreview() {
             <PaintCanvas p={p} depth="all" />
             {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
             <PaintCanvas p={p} depth="front" />
+            {p.icons.map(icon => (
+              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
 

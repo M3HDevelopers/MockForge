@@ -190,16 +190,20 @@ export const TECH_BADGES = [
   'Figma', 'GraphQL', 'Docker', 'AWS', 'Vite', 'Redux', 'Prisma', 'Rust', 'Go', 'Swift', 'Kotlin', 'Java',
 ];
 
-export interface TypoPreset { id: string; label: string; scale: number; pos: PosPreset; badges: boolean; spacingNote: string }
+export interface TypoPreset { id: string; label: string; scale: number; pos: PosPreset; badges: boolean; spacingNote: string; fontWeight?: number; letterSpacing?: number }
 export const TYPO_PRESETS: TypoPreset[] = [
-  { id: 'saas', label: 'Modern SaaS', scale: 1.0, pos: 'bottom-left', badges: true, spacingNote: 'balanced' },
-  { id: 'editorial', label: 'Editorial', scale: 1.35, pos: 'top-left', badges: false, spacingNote: 'wide' },
-  { id: 'minimal', label: 'Minimal', scale: 0.8, pos: 'bottom-center', badges: false, spacingNote: 'airy' },
-  { id: 'bold', label: 'Bold', scale: 1.5, pos: 'center-left', badges: true, spacingNote: 'tight' },
-  { id: 'technical', label: 'Technical', scale: 0.9, pos: 'bottom-left', badges: true, spacingNote: 'mono' },
-  { id: 'luxury', label: 'Luxury', scale: 1.2, pos: 'bottom-right', badges: false, spacingNote: 'serif' },
-  { id: 'developer', label: 'Developer', scale: 0.95, pos: 'top-left', badges: true, spacingNote: 'mono' },
-  { id: 'corporate', label: 'Corporate', scale: 1.05, pos: 'bottom-left', badges: true, spacingNote: 'clean' },
+  { id: 'saas', label: 'Modern SaaS', scale: 1.0, pos: 'bottom-left', badges: true, spacingNote: 'balanced', fontWeight: 700, letterSpacing: 0 },
+  { id: 'editorial', label: 'Editorial', scale: 1.35, pos: 'top-left', badges: false, spacingNote: 'wide', fontWeight: 400, letterSpacing: 2 },
+  { id: 'minimal', label: 'Minimal', scale: 0.8, pos: 'bottom-center', badges: false, spacingNote: 'airy', fontWeight: 300, letterSpacing: 1 },
+  { id: 'bold', label: 'Bold', scale: 1.5, pos: 'center-left', badges: true, spacingNote: 'tight', fontWeight: 900, letterSpacing: -1 },
+  { id: 'technical', label: 'Technical', scale: 0.9, pos: 'bottom-left', badges: true, spacingNote: 'mono', fontWeight: 500, letterSpacing: 0.5 },
+  { id: 'luxury', label: 'Luxury', scale: 1.2, pos: 'bottom-right', badges: false, spacingNote: 'serif', fontWeight: 300, letterSpacing: 3 },
+  { id: 'developer', label: 'Developer', scale: 0.95, pos: 'top-left', badges: true, spacingNote: 'mono', fontWeight: 600, letterSpacing: 0 },
+  { id: 'corporate', label: 'Corporate', scale: 1.05, pos: 'bottom-left', badges: true, spacingNote: 'clean', fontWeight: 600, letterSpacing: 0.5 },
+  { id: 'playful', label: 'Playful', scale: 1.1, pos: 'center', badges: true, spacingNote: 'rounded', fontWeight: 800, letterSpacing: -0.5 },
+  { id: 'elegant', label: 'Elegant', scale: 1.15, pos: 'top-center', badges: false, spacingNote: 'refined', fontWeight: 300, letterSpacing: 4 },
+  { id: 'impact', label: 'Impact', scale: 1.6, pos: 'center', badges: false, spacingNote: 'heavy', fontWeight: 900, letterSpacing: -2 },
+  { id: 'modern', label: 'Modern', scale: 1.0, pos: 'bottom-left', badges: true, spacingNote: 'clean', fontWeight: 500, letterSpacing: 1 },
 ];
 
 /* ---------------- shadows ---------------- */
