@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as RPointerEvent, DragEvent as RDragEvent } from 'react';
 import { useStudio } from '../store';
-import type { Background, DeviceLayer, Project } from '../types';
+import type { Background, DeviceLayer, IconLayer as IconLayerType, Project } from '../types';
 import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn } from '../templates';
 import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
+import { ICONS } from '../iconLibrary';
 
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
@@ -145,6 +146,69 @@ function LogoOverlay({ p }: { p: Project }) {
   );
 }
 
+function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: number; canvasH: number }) {
+  const iconDef = ICONS.find((i) => i.id === icon.iconId);
+  if (!iconDef) return null;
+
+  const setSelection = useStudio(s => s.setSelection);
+  const selected = useStudio(s => s.selection?.kind === 'icon' && s.selection.id === icon.id);
+  
+  const size = icon.size * Math.min(canvasW, canvasH);
+  const x = icon.x * canvasW - size / 2;
+  const y = icon.y * canvasH - size / 2;
+
+  const bgColor = icon.bgColor || '#ffffff';
+  const bgPadding = size * 0.2;
+
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        transform: `rotate(${icon.rotation}deg)`,
+        opacity: icon.opacity,
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        setSelection({ kind: 'icon', id: icon.id });
+      }}
+    >
+      {/* Background */}
+      {icon.bgStyle !== 'none' && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: icon.bgStyle === 'circle' ? bgColor : icon.bgStyle === 'rounded' ? bgColor : 'transparent',
+            borderRadius: icon.bgStyle === 'circle' ? '50%' : icon.bgStyle === 'rounded' ? '20%' : icon.bgStyle === 'glass' ? '20%' : '0',
+            padding: bgPadding,
+            boxShadow: icon.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
+            filter: icon.glow ? `drop-shadow(0 0 8px ${bgColor})` : undefined,
+          }}
+        />
+      )}
+      
+      {/* Icon SVG */}
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={icon.color}
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="relative z-10"
+        style={{ padding: icon.bgStyle !== 'none' ? bgPadding : 0 }}
+      >
+        <path d={iconDef.d} />
+      </svg>
+    </div>
+  );
+}
+
 function DeviceNode({ d, guides, setGuides }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
@@ -273,6 +337,9 @@ export function StagePreview() {
             <PaintCanvas p={p} depth="all" />
             {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
             <PaintCanvas p={p} depth="front" />
+            {p.icons.map(icon => (
+              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
 

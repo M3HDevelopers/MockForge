@@ -65,6 +65,14 @@ function GenerateTab() {
   const generate = useStudio(s => s.generate);
   const setOpen = useStudio(s => s.setGenOpen);
   const score = useStudio(s => s.project ? scoreDesign(s.project).total : 0);
+  
+  // Element configuration state
+  const [bgType, setBgType] = useState<'auto' | 'vector' | 'image' | 'hybrid'>('auto');
+  const [includeIcons, setIncludeIcons] = useState(true);
+  const [includeDeco, setIncludeDeco] = useState(true);
+  const [includeText, setIncludeText] = useState(true);
+  const [iconCount, setIconCount] = useState(3);
+  const [decoIntensity, setDecoIntensity] = useState(50);
 
   return (
     <div className="grid grid-cols-[1fr_300px] gap-0">
@@ -74,6 +82,101 @@ function GenerateTab() {
             {MOODS.map(m => (
               <button key={m} onClick={() => setMood(m)} className={`chip capitalize ${mood === m ? 'on' : ''}`}>{m}</button>
             ))}
+          </div>
+        </Section>
+
+        <Section title="Background type">
+          <div className="grid grid-cols-4 gap-2">
+            {(['auto', 'vector', 'image', 'hybrid'] as const).map(type => (
+              <button
+                key={type}
+                onClick={() => setBgType(type)}
+                className={`p-3 rounded-lg border transition-all ${bgType === type ? 'border-acc bg-acc/10' : 'border-line hover:border-line2'}`}
+              >
+                <div className="text-[12px] font-medium capitalize">{type}</div>
+                <div className="text-[10px] text-dim mt-0.5">
+                  {type === 'auto' && 'Smart selection'}
+                  {type === 'vector' && 'Procedural only'}
+                  {type === 'image' && 'Image backgrounds'}
+                  {type === 'hybrid' && 'Vector + Image'}
+                </div>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Elements to include">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-medium">Icons</div>
+                <div className="text-[10px] text-dim">Add tech icons around devices</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={includeIcons}
+                  onChange={(e) => setIncludeIcons(e.target.checked)}
+                  className="w-4 h-4 accent-acc"
+                />
+                {includeIcons && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-dim">Count:</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="8"
+                      value={iconCount}
+                      onChange={(e) => setIconCount(parseInt(e.target.value))}
+                      className="w-20"
+                    />
+                    <span className="text-[11px] font-mono w-4">{iconCount}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-medium">Decorations</div>
+                <div className="text-[10px] text-dim">Add decorative shapes</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={includeDeco}
+                  onChange={(e) => setIncludeDeco(e.target.checked)}
+                  className="w-4 h-4 accent-acc"
+                />
+                {includeDeco && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-dim">Intensity:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={decoIntensity}
+                      onChange={(e) => setDecoIntensity(parseInt(e.target.value))}
+                      className="w-20"
+                    />
+                    <span className="text-[11px] font-mono w-6">{decoIntensity}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-medium">Text & Badges</div>
+                <div className="text-[10px] text-dim">Add title and tech badges</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={includeText}
+                onChange={(e) => setIncludeText(e.target.checked)}
+                className="w-4 h-4 accent-acc"
+              />
+            </div>
           </div>
         </Section>
 
