@@ -37,8 +37,110 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
       width={p.canvas.w}
       height={p.canvas.h}
       className="absolute inset-0"
-      style={{ width: p.canvas.w, height: p.canvas.h, pointerEvents: depth === 'all' ? 'auto' : 'none' }}
+      style={{ width: p.canvas.w, height: p.canvas.h, pointerEvents: 'none' }}
     />
+  );
+}
+
+function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; canvasH: number }) {
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'deco' && s.selection.id === deco.id);
+  
+  const size = deco.scale * Math.min(canvasW, canvasH);
+  const x = deco.x * canvasW - size / 2;
+  const y = deco.y * canvasH - size / 2;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'deco', id: deco.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      decos: p.decos.map(d => d.id === deco.id ? { ...d, x: drag.ox + dx, y: drag.oy + dy } : d)
+    }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        transform: `rotate(${deco.rotation}deg)`,
+        opacity: deco.opacity,
+        filter: deco.blur > 0 ? `blur(${deco.blur}px)` : undefined,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <DecoShapeSVG deco={deco} size={size} />
+    </div>
+  );
+}
+
+function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
+  const { DECO_PRESETS } = require('../templates');
+  const preset = DECO_PRESETS.find((p: any) => p.id === deco.preset);
+  if (!preset) return null;
+  
+  const color = deco.hue || '#ff6b3d';
+  
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" className="w-full h-full">
+      {preset.prim === 'disc' && <circle cx="50" cy="50" r="45" fill={color} />}
+      {preset.prim === 'ring' && <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'square' && <rect x="10" y="10" width="80" height="80" fill={color} />}
+      {preset.prim === 'triangle' && <polygon points="50,10 90,90 10,90" fill={color} />}
+      {preset.prim === 'line' && <line x1="10" y1="50" x2="90" y2="50" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'arc' && <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'dotgrid' && (
+        <g fill={color}>
+          {[0,1,2,3,4].map(i => [0,1,2,3,4].map(j => (
+            <circle key={`${i}-${j}`} cx={20 + i * 15} cy={20 + j * 15} r="4" />
+          )))}
+        </g>
+      )}
+      {preset.prim === 'plus' && (
+        <g stroke={color} strokeWidth="8" strokeLinecap="round">
+          <line x1="50" y1="10" x2="50" y2="90" />
+          <line x1="10" y1="50" x2="90" y2="50" />
+        </g>
+      )}
+      {preset.prim === 'sphere' && (
+        <>
+          <circle cx="50" cy="50" r="45" fill={color} opacity="0.3" />
+          <circle cx="35" cy="35" r="15" fill="white" opacity="0.5" />
+        </>
+      )}
+      {preset.prim === 'cube' && (
+        <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'blob' && (
+        <path d="M 50 10 Q 80 20 85 50 Q 80 80 50 90 Q 20 80 15 50 Q 20 20 50 10 Z" fill={color} opacity="0.7" />
+      )}
+    </svg>
   );
 }
 
