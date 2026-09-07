@@ -97,8 +97,8 @@ function paintAdvancedPatterns(ctx: CanvasRenderingContext2D, b: Background, w: 
   const ink = dark ? '#ffffff' : '#15171c';
   const min = Math.min(w, h);
   
-  // Randomly select pattern type
-  const patternType = Math.floor(rnd() * 8);
+  // Randomly select pattern type - more variety with 12 patterns
+  const patternType = Math.floor(rnd() * 12);
   
   ctx.save();
   ctx.globalAlpha = 0.15 + rnd() * 0.2;
@@ -240,6 +240,75 @@ function paintAdvancedPatterns(ctx: CanvasRenderingContext2D, b: Background, w: 
             ctx.stroke();
           }
         }
+      }
+      break;
+      
+    case 8: // Star burst
+      const starX = w * (0.3 + rnd() * 0.4);
+      const starY = h * (0.3 + rnd() * 0.4);
+      const rays = 12 + Math.floor(rnd() * 8);
+      for (let i = 0; i < rays; i++) {
+        const angle = (Math.PI * 2 / rays) * i;
+        const len = min * (0.2 + rnd() * 0.3);
+        ctx.strokeStyle = i % 2 === 0 ? rgba(accents.a1, 0.4) : rgba(accents.a2, 0.4);
+        ctx.lineWidth = 1 + rnd() * 2;
+        ctx.beginPath();
+        ctx.moveTo(starX, starY);
+        ctx.lineTo(starX + Math.cos(angle) * len, starY + Math.sin(angle) * len);
+        ctx.stroke();
+      }
+      break;
+      
+    case 9: // Spiral
+      const spiralX = w * (0.3 + rnd() * 0.4);
+      const spiralY = h * (0.3 + rnd() * 0.4);
+      ctx.strokeStyle = accents.a1;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let a = 0; a < Math.PI * 8; a += 0.1) {
+        const r = a * (min * 0.02);
+        const px = spiralX + r * Math.cos(a);
+        const py = spiralY + r * Math.sin(a);
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      break;
+      
+    case 10: // Diamond grid
+      const diamondSize = 50 + rnd() * 40;
+      ctx.strokeStyle = rgba(accents.a1, 0.3);
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w + diamondSize; x += diamondSize) {
+        for (let y = 0; y < h + diamondSize; y += diamondSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, y - diamondSize / 2);
+          ctx.lineTo(x + diamondSize / 2, y);
+          ctx.lineTo(x, y + diamondSize / 2);
+          ctx.lineTo(x - diamondSize / 2, y);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+      
+    case 11: // Flow field
+      const flowLines = 20 + Math.floor(rnd() * 15);
+      for (let i = 0; i < flowLines; i++) {
+        const startX = rnd() * w;
+        const startY = rnd() * h;
+        ctx.strokeStyle = i % 2 === 0 ? rgba(accents.a1, 0.3) : rgba(accents.a2, 0.3);
+        ctx.lineWidth = 1 + rnd() * 2;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        let x = startX, y = startY;
+        for (let step = 0; step < 50; step++) {
+          const angle = Math.sin(x * 0.01) * Math.cos(y * 0.01) * Math.PI * 2;
+          x += Math.cos(angle) * 5;
+          y += Math.sin(angle) * 5;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
       }
       break;
   }

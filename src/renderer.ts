@@ -219,7 +219,11 @@ function glare(ctx: CanvasRenderingContext2D, g: { x: number; y: number; w: numb
 }
 
 /* ---------------- text block ---------------- */
-const TEXT_FONT = '"Space Grotesk", sans-serif';
+const TEXT_FONTS = [
+  '"Space Grotesk", sans-serif',
+  '"IBM Plex Sans", sans-serif',
+  'system-ui, -apple-system, sans-serif',
+];
 const MONO = '"JetBrains Mono", monospace';
 
 function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
@@ -236,29 +240,73 @@ function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   let fontWeight = 700;
   let letterSpacing = 0;
   let subtitleFont = MONO;
+  let titleFont = TEXT_FONTS[0];
+  let textTransform: 'none' | 'uppercase' | 'lowercase' = 'none';
+  let textShadow = false;
+  let textGlow = false;
   
-  if (mood === 'luxury' || mood === 'elegant') {
+  // More diverse typography based on mood
+  if (mood === 'luxury') {
+    fontWeight = 300;
+    letterSpacing = 4;
+    titleFont = TEXT_FONTS[1];
+    textTransform = 'uppercase';
+  } else if (mood === 'elegant') {
     fontWeight = 300;
     letterSpacing = 3;
+    titleFont = TEXT_FONTS[1];
   } else if (mood === 'bold' || mood === 'impact') {
     fontWeight = 900;
     letterSpacing = -1;
+    titleFont = TEXT_FONTS[0];
+    textShadow = true;
   } else if (mood === 'developer' || mood === 'technical') {
     fontWeight = 600;
+    titleFont = MONO;
     subtitleFont = MONO;
+    textTransform = 'uppercase';
   } else if (mood === 'editorial') {
     fontWeight = 400;
     letterSpacing = 2;
+    titleFont = TEXT_FONTS[2];
   } else if (mood === 'minimal') {
     fontWeight = 300;
     letterSpacing = 1;
+    titleFont = TEXT_FONTS[2];
   } else if (mood === 'playful') {
     fontWeight = 800;
     letterSpacing = -0.5;
+    titleFont = TEXT_FONTS[0];
+    textGlow = true;
+  } else if (mood === 'creative') {
+    fontWeight = 700;
+    letterSpacing = 1;
+    titleFont = TEXT_FONTS[0];
+    textGlow = true;
+  } else if (mood === 'futuristic') {
+    fontWeight = 600;
+    letterSpacing = 2;
+    titleFont = MONO;
+    subtitleFont = MONO;
+    textTransform = 'uppercase';
+    textGlow = true;
+  } else if (mood === 'dark') {
+    fontWeight = 700;
+    letterSpacing = 1;
+    titleFont = TEXT_FONTS[0];
+    textShadow = true;
+  } else if (mood === 'premium') {
+    fontWeight = 600;
+    letterSpacing = 2;
+    titleFont = TEXT_FONTS[1];
+  } else if (mood === 'corporate') {
+    fontWeight = 600;
+    letterSpacing = 1;
+    titleFont = TEXT_FONTS[2];
   }
 
   ctx.save();
-  ctx.font = `${fontWeight} ${ts}px ${TEXT_FONT}`;
+  ctx.font = `${fontWeight} ${ts}px ${titleFont}`;
   const tw = t.title ? ctx.measureText(t.title).width : 0;
   const subFs = ts * 0.34;
   ctx.font = `400 ${subFs}px ${subtitleFont}`;
@@ -292,8 +340,22 @@ function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   const ax = align === 'left' ? bx : align === 'right' ? bx + blockW : bx + blockW / 2;
 
   if (t.title) {
-    ctx.font = `${fontWeight} ${ts}px ${TEXT_FONT}`;
+    ctx.font = `${fontWeight} ${ts}px ${titleFont}`;
     ctx.fillStyle = color; ctx.textAlign = align as CanvasTextAlign; ctx.textBaseline = 'top';
+    
+    // Apply text shadow if enabled
+    if (textShadow) {
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+    }
+    
+    // Apply text glow if enabled
+    if (textGlow) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+    }
     
     // Apply letter spacing if supported
     if (letterSpacing !== 0) {
