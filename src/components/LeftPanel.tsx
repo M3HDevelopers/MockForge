@@ -11,12 +11,14 @@ import {
   IcBrowser, IcDevice, IcImage, IcLaptop, IcMonitor, IcPhone, IcPlus, IcRefresh, IcSpark,
   IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg,
 } from '../icons';
+import { IMAGE_ASSETS, searchImages } from '../imageAssets';
+import { ICONS, searchIcons } from '../iconLibrary';
 
 const DEVICE_ICONS: Record<DeviceKind, (p: { size?: number }) => JSX.Element> = {
   laptop: IcLaptop, phone: IcPhone, tablet: IcTablet, browser: IcBrowser, monitor: IcMonitor,
 };
 
-type Tab = 'screens' | 'devices' | 'backdrop' | 'decor';
+type Tab = 'screens' | 'devices' | 'backdrop' | 'decor' | 'images' | 'icons';
 
 export function LeftPanel() {
   const [tab, setTab] = useState<Tab>('screens');
@@ -25,6 +27,8 @@ export function LeftPanel() {
     { id: 'devices', label: 'Layouts', icon: IcDevice },
     { id: 'backdrop', label: 'Backdrop', icon: IcBg },
     { id: 'decor', label: 'Decor', icon: IcSpark },
+    { id: 'images', label: 'Images', icon: IcImage },
+    { id: 'icons', label: 'Icons', icon: IcSpark },
   ];
   return (
     <div className="w-[264px] shrink-0 border-r border-line2 bg-panel flex flex-col">
@@ -55,6 +59,8 @@ export function LeftPanel() {
         {tab === 'devices' && <LayoutsTab />}
         {tab === 'backdrop' && <BackdropTab />}
         {tab === 'decor' && <DecorTab />}
+        {tab === 'images' && <ImagesTab />}
+        {tab === 'icons' && <IconsTab />}
       </div>
     </div>
   );
@@ -360,6 +366,166 @@ function DecorTab() {
       <Section title={`On canvas · ${project.decos.length}`}>
         <button className="btn btn-ghost w-full justify-center !text-[11px]" onClick={clear} disabled={!project.decos.length}>
           <IcTrash size={12} /> Clear all decorations
+        </button>
+      </Section>
+    </>
+  );
+}
+
+function ImagesTab() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const [cat, setCat] = useState<string>('all');
+  const [q, setQ] = useState('');
+
+  const list = useMemo(() => {
+    let imgs = IMAGE_ASSETS;
+    if (cat !== 'all') {
+      imgs = imgs.filter((i) => i.category === cat);
+    }
+    if (q) {
+      imgs = searchImages(q, cat as any);
+    }
+    return imgs;
+  }, [cat, q]);
+
+  const applyImage = (imageId: string) => {
+    checkpoint();
+    update(p => ({
+      ...p,
+      background: {
+        ...p.background,
+        kind: 'image',
+        image: {
+          kind: 'image',
+          imageId,
+          customSrc: null,
+          fit: 'cover',
+          x: 0,
+          y: 0,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          brightness: 1,
+          contrast: 1,
+          saturation: 1,
+          blur: 0,
+          hue: 0,
+          colorFilter: 'original',
+          tint: null,
+          tintOpacity: 0,
+          overlay: 'none',
+          overlayColor: '#000000',
+          overlayOpacity: 0,
+          blend: 'source-over',
+          mask: 'none',
+        },
+      },
+    }));
+  };
+
+  return (
+    <>
+      <Section title={`Image Backgrounds · ${list.length}`}>
+        <div className="relative mb-2">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
+          <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search images…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-1 mb-2.5">
+          {['all', 'abstract', '3d', 'studio', 'architectural', 'glass', 'paper', 'tech', 'editorial'].map(c => (
+            <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {list.map((img: any) => (
+            <button key={img.id} onClick={() => applyImage(img.id)} className="group relative overflow-hidden rounded-lg border border-line hover:border-acc/50 transition-all">
+              <img src={img.src} alt={img.name} className="w-full aspect-square object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                <div className="text-left">
+                  <div className="text-[10px] font-medium text-white">{img.name}</div>
+                  <div className="text-[8px] text-white/70">{img.category}</div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {list.length === 0 && (
+          <p className="text-[11px] text-center py-4" style={{ color: 'var(--color-dim)' }}>No images found</p>
+        )}
+      </Section>
+    </>
+  );
+}
+
+function IconsTab() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const [cat, setCat] = useState<string>('all');
+  const [q, setQ] = useState('');
+
+  const list = useMemo(() => {
+    let icons = ICONS;
+    if (cat !== 'all') {
+      icons = icons.filter((i) => i.category === cat);
+    }
+    if (q) {
+      icons = searchIcons(q, cat);
+    }
+    return icons;
+  }, [cat, q]);
+
+  const addIcon = (iconId: string) => {
+    checkpoint();
+    update(p => ({
+      ...p,
+      icons: [...p.icons, {
+        id: uid(),
+        iconId,
+        x: 0.5,
+        y: 0.5,
+        size: 0.08,
+        color: '#ffffff',
+        opacity: 1,
+        rotation: 0,
+        bgStyle: 'none',
+        bgColor: null,
+        shadow: false,
+        glow: false,
+      }],
+    }));
+  };
+
+  return (
+    <>
+      <Section title={`Icon Library · ${list.length}`}>
+        <div className="relative mb-2">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
+          <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search icons…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-1 mb-2.5">
+          {['all', 'web', 'dev', 'mobile', 'ai', 'cloud', 'design', 'ecom', 'business', 'ui', 'misc'].map(c => (
+            <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {list.map((icon: any) => (
+            <button key={icon.id} onClick={() => addIcon(icon.id)} className="group p-2 rounded-lg border border-line hover:border-acc/50 hover:bg-panel2 transition-all flex flex-col items-center gap-1">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="text-mut group-hover:text-acc transition-colors">
+                <path d={icon.d} />
+              </svg>
+              <div className="text-[8px] text-center truncate w-full" style={{ color: 'var(--color-dim)' }}>{icon.name}</div>
+            </button>
+          ))}
+        </div>
+        {list.length === 0 && (
+          <p className="text-[11px] text-center py-4" style={{ color: 'var(--color-dim)' }}>No icons found</p>
+        )}
+      </Section>
+      <Section title={`On canvas · ${project.icons.length}`}>
+        <button className="btn btn-ghost w-full justify-center !text-[11px]" onClick={() => { checkpoint(); update(p => ({ ...p, icons: [] }), false); }} disabled={!project.icons.length}>
+          <IcTrash size={12} /> Clear all icons
         </button>
       </Section>
     </>
