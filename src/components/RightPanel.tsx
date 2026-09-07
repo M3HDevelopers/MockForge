@@ -358,7 +358,7 @@ function TextProps() {
       </Section>
 
       <Section title="Font family">
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto">
           {[
             { id: 'space-grotesk', label: 'Space Grotesk', font: '"Space Grotesk", sans-serif' },
             { id: 'ibm-plex', label: 'IBM Plex', font: '"IBM Plex Sans", sans-serif' },
@@ -366,15 +366,29 @@ function TextProps() {
             { id: 'mono', label: 'Mono', font: '"JetBrains Mono", monospace' },
             { id: 'serif', label: 'Serif', font: 'Georgia, serif' },
             { id: 'rounded', label: 'Rounded', font: '"Nunito", sans-serif' },
+            { id: 'playfair', label: 'Playfair', font: '"Playfair Display", serif' },
+            { id: 'roboto', label: 'Roboto', font: '"Roboto", sans-serif' },
+            { id: 'open-sans', label: 'Open Sans', font: '"Open Sans", sans-serif' },
+            { id: 'lato', label: 'Lato', font: '"Lato", sans-serif' },
+            { id: 'montserrat', label: 'Montserrat', font: '"Montserrat", sans-serif' },
+            { id: 'poppins', label: 'Poppins', font: '"Poppins", sans-serif' },
+            { id: 'raleway', label: 'Raleway', font: '"Raleway", sans-serif' },
+            { id: 'oswald', label: 'Oswald', font: '"Oswald", sans-serif' },
+            { id: 'merriweather', label: 'Merriweather', font: '"Merriweather", serif' },
+            { id: 'source-code', label: 'Source Code', font: '"Source Code Pro", monospace' },
+            { id: 'fira-code', label: 'Fira Code', font: '"Fira Code", monospace' },
+            { id: 'inter', label: 'Inter', font: '"Inter", sans-serif' },
+            { id: 'work-sans', label: 'Work Sans', font: '"Work Sans", sans-serif' },
+            { id: 'nunito-sans', label: 'Nunito Sans', font: '"Nunito Sans", sans-serif' },
           ].map(f => (
             <button
               key={f.id}
               className="py-2 px-2 rounded-md border text-[10px] transition-all"
               style={{
                 fontFamily: f.font,
-                borderColor: 'var(--color-line)',
-                background: 'var(--color-panel)',
-                color: 'var(--color-mut)',
+                borderColor: (t.fontFamily || 'space-grotesk') === f.id ? 'var(--color-acc)' : 'var(--color-line)',
+                background: (t.fontFamily || 'space-grotesk') === f.id ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: (t.fontFamily || 'space-grotesk') === f.id ? 'var(--color-acc)' : 'var(--color-mut)',
               }}
               onClick={() => { checkpoint(); patch(x => ({ ...x, fontFamily: f.id })); }}
             >

@@ -391,7 +391,17 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
   }
 
   /* text & logo placement */
-  if (doText && opts.includeText !== false && p.text.enabled) p = { ...p, text: { ...p.text, position: pick(rnd, bias.textPos) } };
+  if (doText && opts.includeText !== false && p.text.enabled) {
+    const fontFamilies = ['space-grotesk', 'ibm-plex', 'system', 'mono', 'serif', 'rounded', 'playfair', 'roboto', 'open-sans', 'lato', 'montserrat', 'poppins', 'raleway', 'oswald', 'merriweather', 'source-code', 'fira-code', 'inter', 'work-sans', 'nunito-sans'];
+    p = { 
+      ...p, 
+      text: { 
+        ...p.text, 
+        position: pick(rnd, bias.textPos),
+        fontFamily: pick(rnd, fontFamilies),
+      } 
+    };
+  }
   if (doLogo && p.logo.enabled) {
     const lp: PosPreset[] = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
     p = { ...p, logo: { ...p.logo, position: pick(rnd, lp) } };

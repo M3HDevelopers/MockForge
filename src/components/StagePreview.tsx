@@ -180,6 +180,8 @@ function PlaceholderScreen({ d, highlight }: { d: DeviceLayer; highlight: boolea
 
 function TextOverlay({ p }: { p: Project }) {
   const t = p.text;
+  if (!t) return null; // Safety check
+  
   const selected = useStudio(s => s.selection?.kind === 'text');
   const setSelection = useStudio(s => s.setSelection);
   const update = useStudio(s => s.update);
@@ -187,11 +189,42 @@ function TextOverlay({ p }: { p: Project }) {
   const zoom = useStudio(s => s.zoom);
   
   if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return null;
+  
   const { w: cw, h: ch } = p.canvas;
   const M = Math.round(Math.min(cw, ch) * 0.055);
   const ts = clamp(cw * 0.037, 24, 58) * t.scale;
   const k = clamp(ts / 40, 0.7, 1.4);
   const color = t.autoColor ? textOn(p.background.c1) : t.color;
+  
+  // Font family mapping
+  const fontMap: Record<string, string> = {
+    'space-grotesk': '"Space Grotesk", sans-serif',
+    'ibm-plex': '"IBM Plex Sans", sans-serif',
+    'system': 'system-ui, -apple-system, sans-serif',
+    'mono': '"JetBrains Mono", monospace',
+    'serif': 'Georgia, serif',
+    'rounded': '"Nunito", sans-serif',
+    'playfair': '"Playfair Display", serif',
+    'roboto': '"Roboto", sans-serif',
+    'open-sans': '"Open Sans", sans-serif',
+    'lato': '"Lato", sans-serif',
+    'montserrat': '"Montserrat", sans-serif',
+    'poppins': '"Poppins", sans-serif',
+    'raleway': '"Raleway", sans-serif',
+    'oswald': '"Oswald", sans-serif',
+    'merriweather': '"Merriweather", serif',
+    'source-code': '"Source Code Pro", monospace',
+    'fira-code': '"Fira Code", monospace',
+    'inter': '"Inter", sans-serif',
+    'work-sans': '"Work Sans", sans-serif',
+    'nunito-sans': '"Nunito Sans", sans-serif',
+  };
+  
+  const fontFamily = fontMap[t.fontFamily || 'space-grotesk'] || fontMap['space-grotesk'];
+  
+  // Use absolute positioning if x, y are set, otherwise use preset position
+  const useAbsolute = t.x !== undefined && t.y !== undefined;
+  
   const align = t.position.includes('left') ? 'flex-start' : t.position.includes('right') ? 'flex-end' : 'center';
   const justify = t.position.startsWith('top') ? 'flex-start' : t.position.startsWith('bottom') ? 'flex-end' : 'center';
   const lightText = luminance(color) > 0.5;
@@ -203,36 +236,58 @@ function TextOverlay({ p }: { p: Project }) {
     setSelection({ kind: 'text' });
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: 0, oy: 0 };
+    
+    // Store current position
+    const currentX = t.x !== undefined ? t.x : (t.position.includes('left') ? M : t.position.includes('right') ? cw - M : cw / 2);
+    const currentY = t.y !== undefined ? t.y : (t.position.startsWith('top') ? M : t.position.startsWith('bottom') ? ch - M : ch / 2);
+    
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: currentX, oy: currentY };
   };
   
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
+    
     const dx = (e.clientX - drag.sx) / zoom;
     const dy = (e.clientY - drag.sy) / zoom;
     
-    // Update position based on drag
-    const newPos = dx > 0 ? 'center-right' : dx < 0 ? 'center-left' : t.position;
-    update(p => ({ ...p, text: { ...p.text, position: newPos } }), false);
+    const newX = drag.ox + dx;
+    const newY = drag.oy + dy;
+    
+    // Update absolute position
+    update(p => ({ ...p, text: { ...p.text, x: newX, y: newY } }), false);
   };
   
   const onUp = () => {
     dragRef.current = null;
   };
   
+  // Container style based on positioning mode
+  const containerStyle = useAbsolute 
+    ? { 
+        position: 'absolute' as const,
+        left: t.x,
+        top: t.y,
+        maxWidth: '92%',
+      }
+    : { 
+        padding: M,
+        alignItems: align,
+        justifyContent: justify,
+      };
+  
   return (
-    <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ padding: M, alignItems: align, justifyContent: justify }}>
+    <div className={`absolute inset-0 ${useAbsolute ? '' : 'flex flex-col'} pointer-events-none`} style={containerStyle}>
       <div
         className={`flex flex-col cursor-move pointer-events-auto ${selected ? 'sel-ring' : ''}`}
-        style={{ alignItems: align, maxWidth: '92%' }}
+        style={{ alignItems: useAbsolute ? 'flex-start' : align, maxWidth: '92%' }}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
       >
         {t.title && (
-          <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: ts, lineHeight: 1.1, color, textAlign: align === 'center' ? 'center' : align === 'flex-end' ? 'right' : 'left' }}>
+          <div style={{ fontFamily, fontWeight: 700, fontSize: ts, lineHeight: 1.1, color, textAlign: useAbsolute ? 'left' : align === 'center' ? 'center' : align === 'flex-end' ? 'right' : 'left' }}>
             {t.title}
           </div>
         )}
@@ -242,7 +297,7 @@ function TextOverlay({ p }: { p: Project }) {
           </div>
         )}
         {t.showBadges && t.badges.length > 0 && (
-          <div className="flex flex-wrap gap-[8px]" style={{ marginTop: (t.title || t.subtitle) ? ts * 0.42 : 0, justifyContent: align === 'center' ? 'center' : align }}>
+          <div className="flex flex-wrap gap-[8px]" style={{ marginTop: (t.title || t.subtitle) ? ts * 0.42 : 0, justifyContent: useAbsolute ? 'flex-start' : align === 'center' ? 'center' : align }}>
             {t.badges.map(b => (
               <span key={b} style={{
                 fontFamily: 'var(--font-mono)', fontSize: 12.5 * k, color,
