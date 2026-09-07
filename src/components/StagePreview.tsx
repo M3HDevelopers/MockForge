@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as RPointerEvent, DragEvent as RDragEvent } from 'react';
 import { useStudio } from '../store';
 import type { Background, DeviceLayer, IconLayer as IconLayerType, Project } from '../types';
-import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn } from '../templates';
+import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn, DECO_PRESETS } from '../templates';
 import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
@@ -101,7 +101,6 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
 }
 
 function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
-  const { DECO_PRESETS } = require('../templates');
   const preset = DECO_PRESETS.find((p: any) => p.id === deco.preset);
   if (!preset) return null;
   
@@ -183,6 +182,10 @@ function TextOverlay({ p }: { p: Project }) {
   const t = p.text;
   const selected = useStudio(s => s.selection?.kind === 'text');
   const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  
   if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return null;
   const { w: cw, h: ch } = p.canvas;
   const M = Math.round(Math.min(cw, ch) * 0.055);
@@ -192,12 +195,41 @@ function TextOverlay({ p }: { p: Project }) {
   const align = t.position.includes('left') ? 'flex-start' : t.position.includes('right') ? 'flex-end' : 'center';
   const justify = t.position.startsWith('top') ? 'flex-start' : t.position.startsWith('bottom') ? 'flex-end' : 'center';
   const lightText = luminance(color) > 0.5;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'text' });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: 0, oy: 0 };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom;
+    const dy = (e.clientY - drag.sy) / zoom;
+    
+    // Update position based on drag
+    const newPos = dx > 0 ? 'center-right' : dx < 0 ? 'center-left' : t.position;
+    update(p => ({ ...p, text: { ...p.text, position: newPos } }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
   return (
     <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ padding: M, alignItems: align, justifyContent: justify }}>
       <div
-        className={`flex flex-col cursor-default pointer-events-auto ${selected ? 'sel-ring' : ''}`}
+        className={`flex flex-col cursor-move pointer-events-auto ${selected ? 'sel-ring' : ''}`}
         style={{ alignItems: align, maxWidth: '92%' }}
-        onPointerDown={(e) => { e.stopPropagation(); setSelection({ kind: 'text' }); }}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
       >
         {t.title && (
           <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: ts, lineHeight: 1.1, color, textAlign: align === 'center' ? 'center' : align === 'flex-end' ? 'right' : 'left' }}>
@@ -469,8 +501,8 @@ export function StagePreview() {
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
   return (
-    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay">
-      <div className="min-h-full min-w-full flex items-center justify-center p-14 relative z-10" style={{ width: 'max-content', minWidth: '100%', minHeight: '100%' }}>
+    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ touchAction: 'none' }}>
+      <div className="flex items-center justify-center p-14 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
@@ -480,6 +512,9 @@ export function StagePreview() {
             <PaintCanvas p={p} depth="all" />
             {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
             <PaintCanvas p={p} depth="front" />
+            {p.decos.map(deco => (
+              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
             {p.icons.map(icon => (
               <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
             ))}

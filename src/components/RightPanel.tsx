@@ -357,6 +357,33 @@ function TextProps() {
         </div>
       </Section>
 
+      <Section title="Font family">
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { id: 'space-grotesk', label: 'Space Grotesk', font: '"Space Grotesk", sans-serif' },
+            { id: 'ibm-plex', label: 'IBM Plex', font: '"IBM Plex Sans", sans-serif' },
+            { id: 'system', label: 'System', font: 'system-ui, sans-serif' },
+            { id: 'mono', label: 'Mono', font: '"JetBrains Mono", monospace' },
+            { id: 'serif', label: 'Serif', font: 'Georgia, serif' },
+            { id: 'rounded', label: 'Rounded', font: '"Nunito", sans-serif' },
+          ].map(f => (
+            <button
+              key={f.id}
+              className="py-2 px-2 rounded-md border text-[10px] transition-all"
+              style={{
+                fontFamily: f.font,
+                borderColor: 'var(--color-line)',
+                background: 'var(--color-panel)',
+                color: 'var(--color-mut)',
+              }}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, fontFamily: f.id })); }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Text block" right={<Toggle on={t.enabled} onChange={(v) => { checkpoint(); patch(x => ({ ...x, enabled: v })); }} />}>
         <input className="input mb-2" placeholder="Project name" value={t.title}
           onChange={(e) => patch(x => ({ ...x, title: e.target.value }))} onFocus={checkpoint}
