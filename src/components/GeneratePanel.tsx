@@ -174,21 +174,6 @@ function GenerateTab() {
           </div>
         </Section>
 
-        <Section title="What to randomize">
-          <div className="grid grid-cols-3 gap-1.5">
-            {MODES.map(m => (
-              <button
-                key={m.id}
-                onClick={() => { generate(m.id); }}
-                className="flex flex-col items-start gap-0.5 p-3 rounded-lg border border-line bg-ink hover:border-acc/50 hover:bg-panel2 transition-all text-left group"
-              >
-                <span className="text-[12.5px] font-medium group-hover:text-acc transition-colors">{m.label}</span>
-                <span className="text-[10px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{m.desc}</span>
-              </button>
-            ))}
-          </div>
-        </Section>
-
         <Section title="Locks — protected while generating">
           <div className="flex flex-wrap gap-1.5">
             {LOCK_LABELS.map(l => (

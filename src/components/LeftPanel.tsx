@@ -433,9 +433,11 @@ function ImagesTab() {
   const checkpoint = useStudio(s => s.checkpoint);
   const [cat, setCat] = useState<string>('all');
   const [q, setQ] = useState('');
+  const [customImages, setCustomImages] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
-    let imgs = IMAGE_ASSETS;
+    let imgs = [...IMAGE_ASSETS, ...customImages];
     if (cat !== 'all') {
       imgs = imgs.filter((i) => i.category === cat);
     }
@@ -443,10 +445,11 @@ function ImagesTab() {
       imgs = searchImages(q, cat as any);
     }
     return imgs;
-  }, [cat, q]);
+  }, [cat, q, customImages]);
 
   const applyImage = (imageId: string) => {
     checkpoint();
+    const img = list.find((i: any) => i.id === imageId);
     update(p => ({
       ...p,
       background: {
@@ -455,7 +458,7 @@ function ImagesTab() {
         image: {
           kind: 'image',
           imageId,
-          customSrc: null,
+          customSrc: img?.customSrc || null,
           fit: 'cover',
           x: 0,
           y: 0,
@@ -480,15 +483,59 @@ function ImagesTab() {
     }));
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        const newImage = {
+          id: `custom-${Date.now()}-${Math.random()}`,
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          category: 'custom' as const,
+          tags: ['custom', 'uploaded'],
+          src: dataUrl,
+          customSrc: dataUrl,
+          width: 2048,
+          height: 2048,
+          dark: false,
+          busy: false,
+          mood: ['custom'],
+        };
+        setCustomImages(prev => [...prev, newImage]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = '';
+  };
+
   return (
     <>
       <Section title={`Image Backgrounds · ${list.length}`}>
+        <button
+          className="btn btn-ghost w-full justify-center !text-[11px] mb-2"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <IcUpload size={12} /> Upload Custom Image
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageUpload}
+          style={{ display: 'none' }}
+        />
+
         <div className="relative mb-2">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
           <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search images…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1 mb-2.5">
-          {['all', 'abstract', '3d', 'studio', 'architectural', 'glass', 'paper', 'tech', 'editorial'].map(c => (
+          {['all', 'abstract', '3d', 'studio', 'architectural', 'glass', 'paper', 'tech', 'editorial', 'custom'].map(c => (
             <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
           ))}
         </div>
@@ -519,9 +566,11 @@ function IconsTab() {
   const checkpoint = useStudio(s => s.checkpoint);
   const [cat, setCat] = useState<string>('all');
   const [q, setQ] = useState('');
+  const [customIcons, setCustomIcons] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
-    let icons = ICONS;
+    let icons = [...ICONS, ...customIcons];
     if (cat !== 'all') {
       icons = icons.filter((i) => i.category === cat);
     }
@@ -529,15 +578,17 @@ function IconsTab() {
       icons = searchIcons(q, cat);
     }
     return icons;
-  }, [cat, q]);
+  }, [cat, q, customIcons]);
 
   const addIcon = (iconId: string) => {
     checkpoint();
+    const icon = list.find((i: any) => i.id === iconId);
     update(p => ({
       ...p,
       icons: [...p.icons, {
         id: uid(),
         iconId,
+        iconPath: icon?.d || icon?.pathData || '',
         x: 0.5,
         y: 0.5,
         size: 0.08,
@@ -552,15 +603,66 @@ function IconsTab() {
     }));
   };
 
+  const handleSvgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const svgText = event.target?.result as string;
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+        const svgElement = svgDoc.querySelector('svg');
+        
+        if (svgElement) {
+          const pathElement = svgElement.querySelector('path');
+          const pathData = pathElement?.getAttribute('d') || '';
+          
+          if (pathData) {
+            const newIcon = {
+              id: `custom-icon-${Date.now()}-${Math.random()}`,
+              name: file.name.replace(/\.[^/.]+$/, ''),
+              category: 'custom',
+              tags: ['custom', 'uploaded'],
+              d: pathData,
+              pathData: pathData,
+              style: 'outline',
+            };
+            setCustomIcons(prev => [...prev, newIcon]);
+          }
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    e.target.value = '';
+  };
+
   return (
     <>
       <Section title={`Icon Library · ${list.length}`}>
+        <button
+          className="btn btn-ghost w-full justify-center !text-[11px] mb-2"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <IcUpload size={12} /> Upload Custom SVG Icon
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".svg"
+          multiple
+          onChange={handleSvgUpload}
+          style={{ display: 'none' }}
+        />
+
         <div className="relative mb-2">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
           <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search icons…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1 mb-2.5">
-          {['all', 'web', 'dev', 'mobile', 'ai', 'cloud', 'design', 'ecom', 'business', 'ui', 'misc'].map(c => (
+          {['all', 'web', 'dev', 'mobile', 'ai', 'cloud', 'design', 'ecom', 'business', 'ui', 'misc', 'custom'].map(c => (
             <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
           ))}
         </div>
@@ -568,7 +670,7 @@ function IconsTab() {
           {list.map((icon: any) => (
             <button key={icon.id} onClick={() => addIcon(icon.id)} className="group p-2 rounded-lg border border-line hover:border-acc/50 hover:bg-panel2 transition-all flex flex-col items-center gap-1">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="text-mut group-hover:text-acc transition-colors">
-                <path d={icon.d} />
+                <path d={icon.d || icon.pathData} />
               </svg>
               <div className="text-[8px] text-center truncate w-full" style={{ color: 'var(--color-dim)' }}>{icon.name}</div>
             </button>
