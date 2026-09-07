@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStudio } from '../store';
 import type { DesignSnapshot, GenLocks, Mood, SurpriseMode } from '../types';
 import { scoreDesign } from '../engine';
@@ -25,6 +25,18 @@ export function GeneratePanel() {
   const open = useStudio(s => s.genOpen);
   const setOpen = useStudio(s => s.setGenOpen);
   const [tab, setTab] = useState<Tab>('generate');
+  
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+  
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center anim-fade-in" style={{ background: 'rgba(8,9,11,0.72)', backdropFilter: 'blur(6px)' }} onPointerDown={() => setOpen(false)}>

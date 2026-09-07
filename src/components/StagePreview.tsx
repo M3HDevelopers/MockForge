@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as RPointerEvent, DragEvent as RDragEvent } from 'react';
 import { useStudio } from '../store';
 import type { Background, DeviceLayer, IconLayer as IconLayerType, Project } from '../types';
-import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn } from '../templates';
+import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn, DECO_PRESETS } from '../templates';
 import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
@@ -37,8 +37,109 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
       width={p.canvas.w}
       height={p.canvas.h}
       className="absolute inset-0"
-      style={{ width: p.canvas.w, height: p.canvas.h, pointerEvents: depth === 'all' ? 'auto' : 'none' }}
+      style={{ width: p.canvas.w, height: p.canvas.h, pointerEvents: 'none' }}
     />
+  );
+}
+
+function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; canvasH: number }) {
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'deco' && s.selection.id === deco.id);
+  
+  const size = deco.scale * Math.min(canvasW, canvasH);
+  const x = deco.x * canvasW - size / 2;
+  const y = deco.y * canvasH - size / 2;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'deco', id: deco.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      decos: p.decos.map(d => d.id === deco.id ? { ...d, x: drag.ox + dx, y: drag.oy + dy } : d)
+    }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        transform: `rotate(${deco.rotation}deg)`,
+        opacity: deco.opacity,
+        filter: deco.blur > 0 ? `blur(${deco.blur}px)` : undefined,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <DecoShapeSVG deco={deco} size={size} />
+    </div>
+  );
+}
+
+function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
+  const preset = DECO_PRESETS.find((p: any) => p.id === deco.preset);
+  if (!preset) return null;
+  
+  const color = deco.hue || '#ff6b3d';
+  
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" className="w-full h-full">
+      {preset.prim === 'disc' && <circle cx="50" cy="50" r="45" fill={color} />}
+      {preset.prim === 'ring' && <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'square' && <rect x="10" y="10" width="80" height="80" fill={color} />}
+      {preset.prim === 'triangle' && <polygon points="50,10 90,90 10,90" fill={color} />}
+      {preset.prim === 'line' && <line x1="10" y1="50" x2="90" y2="50" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'arc' && <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'dotgrid' && (
+        <g fill={color}>
+          {[0,1,2,3,4].map(i => [0,1,2,3,4].map(j => (
+            <circle key={`${i}-${j}`} cx={20 + i * 15} cy={20 + j * 15} r="4" />
+          )))}
+        </g>
+      )}
+      {preset.prim === 'plus' && (
+        <g stroke={color} strokeWidth="8" strokeLinecap="round">
+          <line x1="50" y1="10" x2="50" y2="90" />
+          <line x1="10" y1="50" x2="90" y2="50" />
+        </g>
+      )}
+      {preset.prim === 'sphere' && (
+        <>
+          <circle cx="50" cy="50" r="45" fill={color} opacity="0.3" />
+          <circle cx="35" cy="35" r="15" fill="white" opacity="0.5" />
+        </>
+      )}
+      {preset.prim === 'cube' && (
+        <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'blob' && (
+        <path d="M 50 10 Q 80 20 85 50 Q 80 80 50 90 Q 20 80 15 50 Q 20 20 50 10 Z" fill={color} opacity="0.7" />
+      )}
+    </svg>
   );
 }
 
@@ -79,26 +180,114 @@ function PlaceholderScreen({ d, highlight }: { d: DeviceLayer; highlight: boolea
 
 function TextOverlay({ p }: { p: Project }) {
   const t = p.text;
+  if (!t) return null; // Safety check
+  
   const selected = useStudio(s => s.selection?.kind === 'text');
   const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  
   if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return null;
+  
   const { w: cw, h: ch } = p.canvas;
   const M = Math.round(Math.min(cw, ch) * 0.055);
   const ts = clamp(cw * 0.037, 24, 58) * t.scale;
   const k = clamp(ts / 40, 0.7, 1.4);
   const color = t.autoColor ? textOn(p.background.c1) : t.color;
+  
+  // Font family mapping
+  const fontMap: Record<string, string> = {
+    'space-grotesk': '"Space Grotesk", sans-serif',
+    'ibm-plex': '"IBM Plex Sans", sans-serif',
+    'system': 'system-ui, -apple-system, sans-serif',
+    'mono': '"JetBrains Mono", monospace',
+    'serif': 'Georgia, serif',
+    'rounded': '"Nunito", sans-serif',
+    'playfair': '"Playfair Display", serif',
+    'roboto': '"Roboto", sans-serif',
+    'open-sans': '"Open Sans", sans-serif',
+    'lato': '"Lato", sans-serif',
+    'montserrat': '"Montserrat", sans-serif',
+    'poppins': '"Poppins", sans-serif',
+    'raleway': '"Raleway", sans-serif',
+    'oswald': '"Oswald", sans-serif',
+    'merriweather': '"Merriweather", serif',
+    'source-code': '"Source Code Pro", monospace',
+    'fira-code': '"Fira Code", monospace',
+    'inter': '"Inter", sans-serif',
+    'work-sans': '"Work Sans", sans-serif',
+    'nunito-sans': '"Nunito Sans", sans-serif',
+  };
+  
+  const fontFamily = fontMap[t.fontFamily || 'space-grotesk'] || fontMap['space-grotesk'];
+  
+  // Use absolute positioning if x, y are set, otherwise use preset position
+  const useAbsolute = t.x !== undefined && t.y !== undefined;
+  
   const align = t.position.includes('left') ? 'flex-start' : t.position.includes('right') ? 'flex-end' : 'center';
   const justify = t.position.startsWith('top') ? 'flex-start' : t.position.startsWith('bottom') ? 'flex-end' : 'center';
   const lightText = luminance(color) > 0.5;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'text' });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    
+    // Store current position
+    const currentX = t.x !== undefined ? t.x : (t.position.includes('left') ? M : t.position.includes('right') ? cw - M : cw / 2);
+    const currentY = t.y !== undefined ? t.y : (t.position.startsWith('top') ? M : t.position.startsWith('bottom') ? ch - M : ch / 2);
+    
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: currentX, oy: currentY };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    
+    const dx = (e.clientX - drag.sx) / zoom;
+    const dy = (e.clientY - drag.sy) / zoom;
+    
+    const newX = drag.ox + dx;
+    const newY = drag.oy + dy;
+    
+    // Update absolute position
+    update(p => ({ ...p, text: { ...p.text, x: newX, y: newY } }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  // Container style based on positioning mode
+  const containerStyle = useAbsolute 
+    ? { 
+        position: 'absolute' as const,
+        left: t.x,
+        top: t.y,
+        maxWidth: '92%',
+      }
+    : { 
+        padding: M,
+        alignItems: align,
+        justifyContent: justify,
+      };
+  
   return (
-    <div className="absolute inset-0 flex flex-col pointer-events-none" style={{ padding: M, alignItems: align, justifyContent: justify }}>
+    <div className={`absolute inset-0 ${useAbsolute ? '' : 'flex flex-col'} pointer-events-none`} style={containerStyle}>
       <div
-        className={`flex flex-col cursor-default pointer-events-auto ${selected ? 'sel-ring' : ''}`}
-        style={{ alignItems: align, maxWidth: '92%' }}
-        onPointerDown={(e) => { e.stopPropagation(); setSelection({ kind: 'text' }); }}
+        className={`flex flex-col cursor-move pointer-events-auto ${selected ? 'sel-ring' : ''}`}
+        style={{ alignItems: useAbsolute ? 'flex-start' : align, maxWidth: '92%' }}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
       >
         {t.title && (
-          <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: ts, lineHeight: 1.1, color, textAlign: align === 'center' ? 'center' : align === 'flex-end' ? 'right' : 'left' }}>
+          <div style={{ fontFamily, fontWeight: 700, fontSize: ts, lineHeight: 1.1, color, textAlign: useAbsolute ? 'left' : align === 'center' ? 'center' : align === 'flex-end' ? 'right' : 'left' }}>
             {t.title}
           </div>
         )}
@@ -108,7 +297,7 @@ function TextOverlay({ p }: { p: Project }) {
           </div>
         )}
         {t.showBadges && t.badges.length > 0 && (
-          <div className="flex flex-wrap gap-[8px]" style={{ marginTop: (t.title || t.subtitle) ? ts * 0.42 : 0, justifyContent: align === 'center' ? 'center' : align }}>
+          <div className="flex flex-wrap gap-[8px]" style={{ marginTop: (t.title || t.subtitle) ? ts * 0.42 : 0, justifyContent: useAbsolute ? 'flex-start' : align === 'center' ? 'center' : align }}>
             {t.badges.map(b => (
               <span key={b} style={{
                 fontFamily: 'var(--font-mono)', fontSize: 12.5 * k, color,
@@ -367,8 +556,8 @@ export function StagePreview() {
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
   return (
-    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay">
-      <div className="min-h-full min-w-full flex items-center justify-center p-14 relative z-10" style={{ width: 'max-content', minWidth: '100%', minHeight: '100%' }}>
+    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ touchAction: 'none' }}>
+      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
@@ -378,6 +567,9 @@ export function StagePreview() {
             <PaintCanvas p={p} depth="all" />
             {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
             <PaintCanvas p={p} depth="front" />
+            {p.decos.map(deco => (
+              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
             {p.icons.map(icon => (
               <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
             ))}

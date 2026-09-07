@@ -391,7 +391,17 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
   }
 
   /* text & logo placement */
-  if (doText && opts.includeText !== false && p.text.enabled) p = { ...p, text: { ...p.text, position: pick(rnd, bias.textPos) } };
+  if (doText && opts.includeText !== false && p.text.enabled) {
+    const fontFamilies = ['space-grotesk', 'ibm-plex', 'system', 'mono', 'serif', 'rounded', 'playfair', 'roboto', 'open-sans', 'lato', 'montserrat', 'poppins', 'raleway', 'oswald', 'merriweather', 'source-code', 'fira-code', 'inter', 'work-sans', 'nunito-sans'];
+    p = { 
+      ...p, 
+      text: { 
+        ...p.text, 
+        position: pick(rnd, bias.textPos),
+        fontFamily: pick(rnd, fontFamilies),
+      } 
+    };
+  }
   if (doLogo && p.logo.enabled) {
     const lp: PosPreset[] = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
     p = { ...p, logo: { ...p.logo, position: pick(rnd, lp) } };
@@ -404,6 +414,8 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
 /** Generate n scored variations of the base design (best-first). */
 export function generateVariations(base: Project, n: number, mood: Mood, bgType?: 'vector' | 'image' | 'hybrid'): Project[] {
   const out: { p: Project; s: number }[] = [];
+  const moods: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate', 'luxury', 'impact', 'technical'];
+  
   for (let i = 0; i < n; i++) {
     const seed = (Date.now() ^ (i + 1) * 2654435761 ^ Math.floor(Math.random() * 1e9)) >>> 0;
     
@@ -418,18 +430,27 @@ export function generateVariations(base: Project, n: number, mood: Mood, bgType?
       variationBgType = types[i % 3];
     }
     
+    // Vary mood for each variation to get different font styles
+    const variationMood = mood === 'auto' ? moods[i % moods.length] : mood;
+    
     const p = generateDesign(base, { 
       mode: 'all', 
-      mood, 
+      mood: variationMood, 
       seed, 
       locks: { devices: false, background: false, decoration: false, text: false, logo: false },
       bgType: variationBgType,
       includeIcons: true,
-      iconCount: 2 + (i % 4), // Vary icon count: 2-5
+      iconCount: 3 + (i % 5), // Vary icon count: 3-7
       includeDeco: true,
-      decoIntensity: 40 + (i % 3) * 20, // Vary intensity: 40-80%
+      decoIntensity: 40 + (i % 4) * 15, // Vary intensity: 40-85%
       includeText: true,
     });
+    
+    // Also vary text position for more variety
+    const positions: Array<'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'> = 
+      ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+    p.text = { ...p.text, position: positions[i % positions.length] };
+    
     out.push({ p, s: scoreDesign(p).total });
   }
   return out.sort((a, b) => b.s - a.s).map(x => x.p);

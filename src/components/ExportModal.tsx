@@ -25,7 +25,17 @@ export function ExportModal() {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { if (open) setName(project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')); }, [open, project.name]);
+  useEffect(() => { 
+    if (open) {
+      setName(project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open, project.name]);
 
   useEffect(() => {
     if (!open) return;

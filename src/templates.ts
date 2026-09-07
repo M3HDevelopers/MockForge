@@ -354,7 +354,7 @@ export function makeDefaultProject(name: string, type: string, cw: number, ch: n
   const preset = BG_PRESETS[0];
   const text: TextBlock = {
     enabled: true, title: '', subtitle: '', showBadges: false, badges: ['React', 'TypeScript', 'Tailwind'],
-    position: 'bottom-left', scale: 1, color: '#f2f0ea', autoColor: true,
+    position: 'bottom-left', scale: 1, color: '#f2f0ea', autoColor: true, fontFamily: 'space-grotesk',
   };
   return {
     id: uid(), name, type, createdAt: Date.now(), updatedAt: Date.now(),

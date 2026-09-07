@@ -219,7 +219,11 @@ function glare(ctx: CanvasRenderingContext2D, g: { x: number; y: number; w: numb
 }
 
 /* ---------------- text block ---------------- */
-const TEXT_FONT = '"Space Grotesk", sans-serif';
+const TEXT_FONTS = [
+  '"Space Grotesk", sans-serif',
+  '"IBM Plex Sans", sans-serif',
+  'system-ui, -apple-system, sans-serif',
+];
 const MONO = '"JetBrains Mono", monospace';
 
 function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
@@ -236,29 +240,73 @@ function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   let fontWeight = 700;
   let letterSpacing = 0;
   let subtitleFont = MONO;
+  let titleFont = TEXT_FONTS[0];
+  let textTransform: 'none' | 'uppercase' | 'lowercase' = 'none';
+  let textShadow = false;
+  let textGlow = false;
   
-  if (mood === 'luxury' || mood === 'elegant') {
+  // More diverse typography based on mood
+  if (mood === 'luxury') {
+    fontWeight = 300;
+    letterSpacing = 4;
+    titleFont = TEXT_FONTS[1];
+    textTransform = 'uppercase';
+  } else if (mood === 'elegant') {
     fontWeight = 300;
     letterSpacing = 3;
+    titleFont = TEXT_FONTS[1];
   } else if (mood === 'bold' || mood === 'impact') {
     fontWeight = 900;
     letterSpacing = -1;
+    titleFont = TEXT_FONTS[0];
+    textShadow = true;
   } else if (mood === 'developer' || mood === 'technical') {
     fontWeight = 600;
+    titleFont = MONO;
     subtitleFont = MONO;
+    textTransform = 'uppercase';
   } else if (mood === 'editorial') {
     fontWeight = 400;
     letterSpacing = 2;
+    titleFont = TEXT_FONTS[2];
   } else if (mood === 'minimal') {
     fontWeight = 300;
     letterSpacing = 1;
+    titleFont = TEXT_FONTS[2];
   } else if (mood === 'playful') {
     fontWeight = 800;
     letterSpacing = -0.5;
+    titleFont = TEXT_FONTS[0];
+    textGlow = true;
+  } else if (mood === 'creative') {
+    fontWeight = 700;
+    letterSpacing = 1;
+    titleFont = TEXT_FONTS[0];
+    textGlow = true;
+  } else if (mood === 'futuristic') {
+    fontWeight = 600;
+    letterSpacing = 2;
+    titleFont = MONO;
+    subtitleFont = MONO;
+    textTransform = 'uppercase';
+    textGlow = true;
+  } else if (mood === 'dark') {
+    fontWeight = 700;
+    letterSpacing = 1;
+    titleFont = TEXT_FONTS[0];
+    textShadow = true;
+  } else if (mood === 'premium') {
+    fontWeight = 600;
+    letterSpacing = 2;
+    titleFont = TEXT_FONTS[1];
+  } else if (mood === 'corporate') {
+    fontWeight = 600;
+    letterSpacing = 1;
+    titleFont = TEXT_FONTS[2];
   }
 
   ctx.save();
-  ctx.font = `${fontWeight} ${ts}px ${TEXT_FONT}`;
+  ctx.font = `${fontWeight} ${ts}px ${titleFont}`;
   const tw = t.title ? ctx.measureText(t.title).width : 0;
   const subFs = ts * 0.34;
   ctx.font = `400 ${subFs}px ${subtitleFont}`;
@@ -292,8 +340,22 @@ function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   const ax = align === 'left' ? bx : align === 'right' ? bx + blockW : bx + blockW / 2;
 
   if (t.title) {
-    ctx.font = `${fontWeight} ${ts}px ${TEXT_FONT}`;
+    ctx.font = `${fontWeight} ${ts}px ${titleFont}`;
     ctx.fillStyle = color; ctx.textAlign = align as CanvasTextAlign; ctx.textBaseline = 'top';
+    
+    // Apply text shadow if enabled
+    if (textShadow) {
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+    }
+    
+    // Apply text glow if enabled
+    if (textGlow) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+    }
     
     // Apply letter spacing if supported
     if (letterSpacing !== 0) {
@@ -364,6 +426,99 @@ async function drawLogo(ctx: CanvasRenderingContext2D, p: Project) {
   } catch { /* skip logo */ }
 }
 
+/* ---------------- icons ---------------- */
+import { ICONS } from './iconLibrary';
+
+function drawIcons(ctx: CanvasRenderingContext2D, p: Project) {
+  if (!p.icons || p.icons.length === 0) return;
+  
+  for (const icon of p.icons) {
+    const iconDef = ICONS.find(i => i.id === icon.iconId);
+    if (!iconDef) continue;
+    
+    const size = icon.size * Math.min(p.canvas.w, p.canvas.h);
+    const x = icon.x * p.canvas.w - size / 2;
+    const y = icon.y * p.canvas.h - size / 2;
+    
+    ctx.save();
+    ctx.globalAlpha = icon.opacity;
+    ctx.translate(x + size / 2, y + size / 2);
+    ctx.rotate((icon.rotation * Math.PI) / 180);
+    ctx.translate(-size / 2, -size / 2);
+    
+    // Draw background if enabled
+    if (icon.bgStyle !== 'none' && icon.bgColor) {
+      const bgColor = icon.bgColor;
+      const bgPadding = size * 0.2;
+      
+      if (icon.bgStyle === 'circle') {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (icon.bgStyle === 'rounded') {
+        ctx.fillStyle = bgColor;
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.fill();
+      } else if (icon.bgStyle === 'glass') {
+        ctx.fillStyle = bgColor + '33';
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.fill();
+        ctx.strokeStyle = bgColor + '66';
+        ctx.lineWidth = 1;
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.stroke();
+      } else if (icon.bgStyle === 'gradient') {
+        const grad = ctx.createLinearGradient(0, 0, size, size);
+        grad.addColorStop(0, bgColor + '88');
+        grad.addColorStop(1, bgColor);
+        ctx.fillStyle = grad;
+        rr(ctx, 0, 0, size, size, size * 0.2);
+        ctx.fill();
+      } else if (icon.bgStyle === 'badge') {
+        ctx.fillStyle = bgColor;
+        rr(ctx, 0, 0, size, size, size * 0.08);
+        ctx.fill();
+      }
+    }
+    
+    // Draw icon
+    ctx.strokeStyle = icon.color;
+    ctx.lineWidth = 1.7;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    const padding = icon.bgStyle !== 'none' ? size * 0.2 : 0;
+    const iconSize = size - padding * 2;
+    const scale = iconSize / 24;
+    
+    ctx.translate(padding, padding);
+    ctx.scale(scale, scale);
+    
+    // Parse and draw SVG path
+    const path = new Path2D(iconDef.d);
+    ctx.stroke(path);
+    
+    // Add glow if enabled
+    if (icon.glow) {
+      ctx.shadowColor = icon.color;
+      ctx.shadowBlur = 12;
+      ctx.stroke(path);
+    }
+    
+    // Add shadow if enabled
+    if (icon.shadow) {
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.stroke(path);
+    }
+    
+    ctx.restore();
+  }
+}
+
 /* ---------------- main ---------------- */
 export async function renderProject(p: Project, opts: { scale?: number; transparent?: boolean } = {}): Promise<HTMLCanvasElement> {
   await ensureFonts();
@@ -391,6 +546,11 @@ export async function renderProject(p: Project, opts: { scale?: number; transpar
   }
 
   if (!transparent && hasLayers) drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
+
+  // Draw icons
+  if (p.icons && p.icons.length > 0) {
+    drawIcons(ctx, p);
+  }
 
   await drawLogo(ctx, p);
   drawTextBlock(ctx, p);

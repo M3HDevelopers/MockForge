@@ -143,6 +143,9 @@ export interface TextBlock {
   scale: number;
   color: string;
   autoColor: boolean;
+  fontFamily: string;
+  x?: number;
+  y?: number;
 }
 
 export interface LogoState {
