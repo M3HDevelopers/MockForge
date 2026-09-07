@@ -155,7 +155,7 @@ interface StudioState {
   setMood: (m: Mood) => void;
   toggleLock: (k: keyof GenLocks) => void;
   generate: (mode: SurpriseMode) => void;
-  makeVariations: (type?: 'vector' | 'image' | 'hybrid') => Promise<void>;
+  makeVariations: (type?: 'vector' | 'image' | 'hybrid') => Promise<DesignSnapshot[]>;
   applyVariation: (id: string) => void;
   setVariationsOpen: (v: boolean) => void;
   setGenOpen: (v: boolean) => void;
@@ -538,7 +538,7 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   makeVariations: async (type?: 'vector' | 'image' | 'hybrid') => {
     const cur = get().project;
-    if (!cur) return;
+    if (!cur) return [];
     const list = generateVariations(cur, 10, get().mood, type);
     const snaps: DesignSnapshot[] = [];
     for (let i = 0; i < list.length; i++) {
@@ -548,6 +548,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       snaps.push(snapshot(p, `Variation ${String(i + 1).padStart(2, '0')}${typeLabel}`, thumb));
     }
     set({ variations: snaps, variationsOpen: true });
+    return snaps;
   },
 
   applyVariation: (id) => {

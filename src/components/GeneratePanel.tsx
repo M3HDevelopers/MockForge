@@ -238,58 +238,76 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 function VariationsTab() {
-  const variations = useStudio(s => s.variations);
+  const [activeTab, setActiveTab] = useState<'vector' | 'image' | 'mixed'>('vector');
+  const [variations, setVariations] = useState<{
+    vector: DesignSnapshot[];
+    image: DesignSnapshot[];
+    mixed: DesignSnapshot[];
+  }>({ vector: [], image: [], mixed: [] });
+  const [busy, setBusy] = useState(false);
   const makeVariations = useStudio(s => s.makeVariations);
   const applyVariation = useStudio(s => s.applyVariation);
-  const [busy, setBusy] = useState(false);
-  const [varType, setVarType] = useState<'mixed' | 'vector' | 'image' | 'hybrid'>('mixed');
 
   const gen = async () => {
     setBusy(true);
-    await makeVariations(varType === 'mixed' ? undefined : varType);
+    const type = activeTab === 'mixed' ? undefined : activeTab;
+    const newVariations = await makeVariations(type);
+    setVariations(prev => ({ ...prev, [activeTab]: newVariations }));
     setBusy(false);
   };
 
+  const currentVariations = variations[activeTab];
+
   return (
     <div className="p-5">
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        {(['vector', 'image', 'mixed'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-[13px] transition-all ${
+              activeTab === tab
+                ? 'bg-acc text-white shadow-lg'
+                : 'bg-panel2 text-mut hover:bg-panel3'
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {variations[tab].length > 0 && (
+              <span className="ml-2 text-[10px] opacity-70">({variations[tab].length})</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: 15 }}>Generate 10 variations</div>
-          <div className="text-[11px] mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>scored best-first · click one to apply</div>
+          <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: 15 }}>
+            Generate 10 {activeTab} variations
+          </div>
+          <div className="text-[11px] mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+            {activeTab === 'vector' && 'All procedural vector backgrounds'}
+            {activeTab === 'image' && 'All high-resolution image backgrounds'}
+            {activeTab === 'mixed' && 'Mix of vector and image backgrounds'}
+          </div>
         </div>
         <button className="btn btn-acc" onClick={gen} disabled={busy}>
           {busy ? <IcSpin size={14} /> : <IcRefresh size={14} />}
-          {variations.length ? 'Generate more' : 'Generate 10'}
+          {currentVariations.length ? 'Generate more' : 'Generate 10'}
         </button>
       </div>
 
-      <div className="mb-4">
-        <div className="label-mono mb-2">Variation type</div>
-        <div className="grid grid-cols-4 gap-2">
-          {(['mixed', 'vector', 'image', 'hybrid'] as const).map(type => (
-            <button
-              key={type}
-              onClick={() => setVarType(type)}
-              className={`p-2.5 rounded-lg border transition-all text-left ${varType === type ? 'border-acc bg-acc/10' : 'border-line hover:border-line2'}`}
-            >
-              <div className="text-[11px] font-medium capitalize">{type}</div>
-              <div className="text-[9px] text-dim mt-0.5">
-                {type === 'mixed' && 'All types'}
-                {type === 'vector' && 'Vector only'}
-                {type === 'image' && 'Image only'}
-                {type === 'hybrid' && 'Vector + Image'}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {variations.length === 0 && !busy && (
+      {/* Content */}
+      {currentVariations.length === 0 && !busy && (
         <div className="py-16 text-center">
           <div className="mx-auto mb-3 w-fit text-dim"><IcGrid size={30} /></div>
-          <p className="text-[12.5px] text-mut">No variations yet. Generate a batch to explore directions.</p>
+          <p className="text-[12.5px] text-mut">
+            No {activeTab} variations yet. Click generate to create 10 variations.
+          </p>
         </div>
       )}
+
       {busy && (
         <div className="grid grid-cols-5 gap-3">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -297,9 +315,10 @@ function VariationsTab() {
           ))}
         </div>
       )}
-      {!busy && variations.length > 0 && (
+
+      {!busy && currentVariations.length > 0 && (
         <div className="grid grid-cols-5 gap-3 stagger">
-          {variations.map(v => (
+          {currentVariations.map(v => (
             <button key={v.id} onClick={() => applyVariation(v.id)} className="group text-left">
               <div className="relative rounded-lg overflow-hidden border border-line group-hover:border-acc transition-colors">
                 <img src={v.thumb} alt={v.label} className="w-full aspect-[8/5] object-cover" />
