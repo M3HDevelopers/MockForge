@@ -5,7 +5,7 @@ import { scoreDesign } from '../engine';
 import { Section } from './ui';
 import { IcClose, IcCompare, IcDice, IcGrid, IcHeart, IcLock, IcSpin, IcStar, IcTrash, IcUnlock, IcWand, IcLayers, IcRefresh } from '../icons';
 
-const MOODS: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate'];
+const MOODS: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate', 'luxury', 'impact', 'technical'];
 const MODES: { id: SurpriseMode; label: string; desc: string }[] = [
   { id: 'all', label: 'Surprise me', desc: 'Full composition' },
   { id: 'background', label: 'Background', desc: 'Backdrop only' },

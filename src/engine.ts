@@ -126,6 +126,9 @@ const MOODS: Record<Mood, MoodBias> = {
   futuristic: { palettes: [2, 12, 14, 8], styles: ['tech', 'glass'], density: [0.4, 0.8], maxTilt: 8, shadows: ['glow', 'float'], textPos: ['top-left', 'bottom-left'], preferMulti: false, decoCats: ['geometric', '3d'] },
   playful:    { palettes: [1, 7, 9, 10], styles: ['abstract', 'glass'], density: [0.5, 1], maxTilt: 12, shadows: ['float', 'glow'], textPos: ['top-center', 'bottom-center'], preferMulti: true, decoCats: ['3d', 'ui', 'abstract'] },
   corporate:  { palettes: [3, 4, 5, 12], styles: ['studio', 'plain', 'grid'], density: [0.2, 0.5], maxTilt: 4, shadows: ['soft', 'product'], textPos: ['bottom-left'], preferMulti: false, decoCats: ['geometric'] },
+  luxury:     { palettes: [0, 5, 11, 15], styles: ['studio', 'glass'], density: [0.2, 0.4], maxTilt: 4, shadows: ['cinematic', 'float'], textPos: ['bottom-right', 'bottom-center'], preferMulti: false, decoCats: ['3d', 'abstract'] },
+  impact:     { palettes: [0, 8, 9], styles: ['abstract', 'studio'], density: [0.6, 1.0], maxTilt: 12, shadows: ['hard', 'float'], textPos: ['center', 'center-left'], preferMulti: false, decoCats: ['geometric', '3d'] },
+  technical:  { palettes: [2, 6, 8, 14], styles: ['tech', 'grid'], density: [0.3, 0.6], maxTilt: 5, shadows: ['soft', 'product'], textPos: ['top-left', 'bottom-left'], preferMulti: false, decoCats: ['geometric', 'ui'] },
 };
 
 /* ---------------- geometry helpers ---------------- */

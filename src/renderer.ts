@@ -231,12 +231,38 @@ function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   const color = t.autoColor ? textOn(p.background.c1) : t.color;
   const k = clamp(ts / 40, 0.7, 1.4);
 
+  // Determine typography style based on project mood
+  const mood = p.mood || 'auto';
+  let fontWeight = 700;
+  let letterSpacing = 0;
+  let subtitleFont = MONO;
+  
+  if (mood === 'luxury' || mood === 'elegant') {
+    fontWeight = 300;
+    letterSpacing = 3;
+  } else if (mood === 'bold' || mood === 'impact') {
+    fontWeight = 900;
+    letterSpacing = -1;
+  } else if (mood === 'developer' || mood === 'technical') {
+    fontWeight = 600;
+    subtitleFont = MONO;
+  } else if (mood === 'editorial') {
+    fontWeight = 400;
+    letterSpacing = 2;
+  } else if (mood === 'minimal') {
+    fontWeight = 300;
+    letterSpacing = 1;
+  } else if (mood === 'playful') {
+    fontWeight = 800;
+    letterSpacing = -0.5;
+  }
+
   ctx.save();
-  ctx.font = `700 ${ts}px ${TEXT_FONT}`;
+  ctx.font = `${fontWeight} ${ts}px ${TEXT_FONT}`;
   const tw = t.title ? ctx.measureText(t.title).width : 0;
   const subFs = ts * 0.34;
-  ctx.font = `400 ${subFs}px ${MONO}`;
-  const sw = t.subtitle ? ctx.measureText(t.subtitle.toUpperCase()).width + t.subtitle.length * 1.6 * k : 0;
+  ctx.font = `400 ${subFs}px ${subtitleFont}`;
+  const sw = t.subtitle ? ctx.measureText(t.subtitle.toUpperCase()).width + t.subtitle.length * letterSpacing * k : 0;
   const badgeFs = 12.5 * k;
   ctx.font = `500 ${badgeFs}px ${MONO}`;
   const padX = 12 * k, pillH = 26 * k, gap = 8 * k;
@@ -266,13 +292,25 @@ function drawTextBlock(ctx: CanvasRenderingContext2D, p: Project) {
   const ax = align === 'left' ? bx : align === 'right' ? bx + blockW : bx + blockW / 2;
 
   if (t.title) {
-    ctx.font = `700 ${ts}px ${TEXT_FONT}`;
+    ctx.font = `${fontWeight} ${ts}px ${TEXT_FONT}`;
     ctx.fillStyle = color; ctx.textAlign = align as CanvasTextAlign; ctx.textBaseline = 'top';
+    
+    // Apply letter spacing if supported
+    if (letterSpacing !== 0) {
+      try { (ctx as unknown as { letterSpacing: string }).letterSpacing = `${letterSpacing}px`; } catch { /* unsupported */ }
+    }
+    
     ctx.fillText(t.title, ax, y);
+    
+    // Reset letter spacing
+    if (letterSpacing !== 0) {
+      try { (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px'; } catch { /* unsupported */ }
+    }
+    
     y += ts * 1.1 + (t.subtitle ? ts * 0.34 : 0);
   }
   if (t.subtitle) {
-    ctx.font = `400 ${subFs}px ${MONO}`;
+    ctx.font = `400 ${subFs}px ${subtitleFont}`;
     ctx.fillStyle = color; ctx.globalAlpha = 0.72;
     try { (ctx as unknown as { letterSpacing: string }).letterSpacing = `${1.6 * k}px`; } catch { /* unsupported */ }
     ctx.fillText(t.subtitle.toUpperCase(), ax, y);
