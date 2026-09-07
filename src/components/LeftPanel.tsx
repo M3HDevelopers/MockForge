@@ -297,6 +297,7 @@ const BG_STYLES: { id: BgStyle; label: string }[] = [
 function BackdropTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
 
   const presets = useMemo(() => {
     const out: { id: string; name: string; style: BgStyle; type: BgType; seed: number }[] = [];
@@ -313,29 +314,59 @@ function BackdropTab() {
   }, []);
 
   const apply = (style: BgStyle, type: BgType, seed: number) => {
-    update(p => ({ ...p, background: { ...p.background, style, type, seed } }), true);
+    update(p => ({ ...p, background: { ...p.background, style, type, seed, kind: 'procedural' } }), true);
+  };
+
+  const setBackgroundKind = (kind: 'procedural' | 'image' | 'hybrid' | 'auto') => {
+    checkpoint();
+    update(p => ({ ...p, background: { ...p.background, kind } }));
   };
 
   return (
-    <Section title={`Backgrounds · ${presets.length}`}>
-      <p className="text-[10px] mb-2.5 leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-        tap to apply · tune colors in the right panel
-      </p>
-      <div className="grid grid-cols-3 gap-1.5">
-        {presets.map(bp => {
-          const bg = { ...project.background, style: bp.style, type: bp.type, seed: bp.seed };
-          const active = project.background.style === bp.style && project.background.type === bp.type;
-          return (
-            <button key={bp.id} onClick={() => apply(bp.style, bp.type, bp.seed)} className="group cursor-pointer text-left" title={bp.name}>
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: active ? '1.5px solid var(--color-acc)' : '1px solid var(--color-line)' }}>
-                <BgThumbView bg={bg} accents={project.accents} />
-              </div>
-              <div className="text-[9px] mt-1 truncate" style={{ fontFamily: 'var(--font-mono)', color: active ? 'var(--color-acc)' : 'var(--color-dim)' }}>{bp.name}</div>
+    <>
+      <Section title="Background Type">
+        <div className="grid grid-cols-4 gap-1 mb-2.5">
+          {(['procedural', 'image', 'hybrid', 'auto'] as const).map(k => (
+            <button
+              key={k}
+              onClick={() => setBackgroundKind(k)}
+              className="py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: (project.background.kind || 'procedural') === k ? 'var(--color-acc)' : 'var(--color-line)',
+                background: (project.background.kind || 'procedural') === k ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: (project.background.kind || 'procedural') === k ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {k}
             </button>
-          );
-        })}
-      </div>
-    </Section>
+          ))}
+        </div>
+        <p className="text-[9px] leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+          auto = engine decides based on mood
+        </p>
+      </Section>
+
+      <Section title={`Procedural Backgrounds · ${presets.length}`}>
+        <p className="text-[10px] mb-2.5 leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+          tap to apply · tune colors in the right panel
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {presets.map(bp => {
+            const bg = { ...project.background, style: bp.style, type: bp.type, seed: bp.seed };
+            const active = project.background.style === bp.style && project.background.type === bp.type;
+            return (
+              <button key={bp.id} onClick={() => apply(bp.style, bp.type, bp.seed)} className="group cursor-pointer text-left" title={bp.name}>
+                <div style={{ borderRadius: 8, overflow: 'hidden', border: active ? '1.5px solid var(--color-acc)' : '1px solid var(--color-line)' }}>
+                  <BgThumbView bg={bg} accents={project.accents} />
+                </div>
+                <div className="text-[9px] mt-1 truncate" style={{ fontFamily: 'var(--font-mono)', color: active ? 'var(--color-acc)' : 'var(--color-dim)' }}>{bp.name}</div>
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+    </>
   );
 }
 

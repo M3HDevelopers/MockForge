@@ -27,7 +27,7 @@ export type SurpriseMode = 'all' | 'background' | 'layout' | 'colors' | 'decor' 
 
 /* ================= image background types ================= */
 export type ImageCategory = 'abstract' | '3d' | 'studio' | 'architectural' | 'glass' | 'paper' | 'tech' | 'editorial' | 'custom';
-export type BackgroundKind = 'procedural' | 'image' | 'hybrid';
+export type BackgroundKind = 'procedural' | 'image' | 'hybrid' | 'auto';
 export type ImageFit = 'cover' | 'contain' | 'fill' | 'stretch' | 'center';
 export type ImageColorFilter = 'original' | 'grayscale' | 'warm' | 'cool' | 'muted' | 'high' | 'soft' | 'dark' | 'light';
 export type ImageOverlay = 'none' | 'color' | 'gradient' | 'black' | 'white' | 'noise' | 'vignette' | 'light';
@@ -206,7 +206,7 @@ export interface Project {
 
 /* ================= editor state ================= */
 export interface Selection {
-  kind: 'device' | 'text' | 'logo' | 'background' | 'deco';
+  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon';
   id?: string;
 }
 

@@ -20,11 +20,13 @@ export function RightPanel() {
   const selection = useStudio(s => s.selection);
   const project = useStudio(s => s.project)!;
   const device = selection?.kind === 'device' ? project.devices.find(d => d.id === selection.id) : undefined;
+  const icon = selection?.kind === 'icon' ? project.icons.find(i => i.id === selection.id) : undefined;
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col">
       <div className="flex-1 overflow-y-auto bg-ink">
         {device ? <DeviceProps d={device} />
+          : icon ? <IconProps i={icon} />
           : selection?.kind === 'text' ? <TextProps />
           : selection?.kind === 'logo' ? <LogoProps />
           : <BackgroundProps />}
@@ -410,6 +412,65 @@ function LogoProps() {
       </Section>
       <Section title="Position">
         <PosGrid value={l.position} onChange={(v) => { checkpoint(); patch(x => ({ ...x, position: v })); }} />
+      </Section>
+    </>
+  );
+}
+
+function IconProps({ i }: { i: import('../types').IconLayer }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const removeIcon = useStudio(s => s.removeIcon);
+  const patch = (fn: (x: import('../types').IconLayer) => import('../types').IconLayer) =>
+    update(p => ({ ...p, icons: p.icons.map(x => x.id === i.id ? fn(x) : x) }), false);
+
+  return (
+    <>
+      <Section title="Icon" right={
+        <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => removeIcon(i.id)}><IcTrash size={12} /></button>
+      }>
+        <div className="text-[11px] mb-2" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+          Icon ID: {i.iconId}
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Size" value={Math.round(i.size * 100)} min={2} max={20} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, size: v / 100 }))} />
+        <SliderRow label="Rotation" value={i.rotation} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, rotation: v }))} />
+        <SliderRow label="Opacity" value={Math.round(i.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, opacity: v / 100 }))} />
+      </Section>
+
+      <Section title="Color">
+        <ColorInput value={i.color} onChange={(v) => { checkpoint(); patch(x => ({ ...x, color: v })); }} label="icon" />
+      </Section>
+
+      <Section title="Background">
+        <div className="grid grid-cols-3 gap-1 mb-2">
+          {(['none', 'circle', 'rounded', 'glass', 'gradient', 'badge'] as const).map(bg => (
+            <button
+              key={bg}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, bgStyle: bg })); }}
+              className="py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: i.bgStyle === bg ? 'var(--color-acc)' : 'var(--color-line)',
+                background: i.bgStyle === bg ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: i.bgStyle === bg ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {bg}
+            </button>
+          ))}
+        </div>
+        {i.bgStyle !== 'none' && (
+          <ColorInput value={i.bgColor || '#ffffff'} onChange={(v) => { checkpoint(); patch(x => ({ ...x, bgColor: v })); }} label="bg color" />
+        )}
+      </Section>
+
+      <Section title="Effects">
+        <Toggle on={i.shadow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, shadow: v })); }} label="Shadow" />
+        <Toggle on={i.glow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, glow: v })); }} label="Glow" />
       </Section>
     </>
   );
