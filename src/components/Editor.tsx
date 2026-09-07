@@ -145,9 +145,9 @@ export function Editor() {
         />
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         <LeftPanel />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 h-full">
           <StagePreview />
           <div className="h-9 shrink-0 border-t border-line2 bg-panel flex items-center justify-between px-3">
             <span className="text-[10.5px] hidden md:block" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>

@@ -557,7 +557,7 @@ export function StagePreview() {
 
   return (
     <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ touchAction: 'none' }}>
-      <div className="flex items-center justify-center p-14 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
+      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
