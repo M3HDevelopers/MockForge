@@ -338,7 +338,7 @@ export async function renderProject(p: Project, opts: { scale?: number; transpar
   ctx.imageSmoothingQuality = 'high';
 
   const transparent = !!opts.transparent;
-  if (!transparent) renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
+  if (!transparent) await renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
 
   const hasLayers = p.decos && p.decos.length > 0;
   if (!transparent) {

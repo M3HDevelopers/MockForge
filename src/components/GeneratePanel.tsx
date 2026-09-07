@@ -57,7 +57,6 @@ export function GeneratePanel() {
   );
 }
 
-/* ---------------- generate ---------------- */
 function GenerateTab() {
   const mood = useStudio(s => s.mood);
   const setMood = useStudio(s => s.setMood);
@@ -102,9 +101,6 @@ function GenerateTab() {
               </button>
             ))}
           </div>
-          <p className="text-[10.5px] mt-2" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-            locked parts stay exactly as they are when you generate
-          </p>
         </Section>
       </div>
 
@@ -119,9 +115,6 @@ function GenerateTab() {
           <IcDice size={16} />
           Surprise me
         </button>
-        <p className="text-[10.5px] mt-2.5 leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-          Constraint-aware generation keeps the device the hero and text readable.
-        </p>
       </div>
     </div>
   );
@@ -147,7 +140,6 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-/* ---------------- variations ---------------- */
 function VariationsTab() {
   const variations = useStudio(s => s.variations);
   const makeVariations = useStudio(s => s.makeVariations);
@@ -208,7 +200,6 @@ function VariationsTab() {
   );
 }
 
-/* ---------------- library (favorites + history + compare) ---------------- */
 function LibraryTab() {
   const favorites = useStudio(s => s.favorites);
   const history = useStudio(s => s.history);

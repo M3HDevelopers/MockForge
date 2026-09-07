@@ -37,7 +37,6 @@ export function ExportModal() {
       } catch { /* preview best-effort */ }
     }, 180);
     return () => { if (timer.current) clearTimeout(timer.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, project, format, transparent]);
 
   if (!open) return null;
@@ -83,14 +82,12 @@ export function ExportModal() {
         </div>
 
         <div className="flex">
-          {/* preview */}
           <div className="flex-1 checker p-6 flex items-center justify-center" style={{ minHeight: 380 }}>
             {preview
               ? <img src={preview} alt="preview" className="max-w-full max-h-[340px] rounded-md shadow-[0_18px_50px_rgba(0,0,0,0.5)] anim-fade-in" />
               : <IcSpin size={22} />}
           </div>
 
-          {/* options */}
           <div className="w-[320px] border-l border-line2 bg-ink p-4 space-y-4">
             <div>
               <div className="label-mono mb-1.5">Format</div>
@@ -111,9 +108,6 @@ export function ExportModal() {
                 value={String(scale) as '1' | '2' | '3'}
                 onChange={(v) => setScale(parseInt(v) as 1 | 2 | 3)}
               />
-              <div className="text-[10px] mt-1" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-                multiplies the original size preset
-              </div>
             </div>
 
             <div>
@@ -140,7 +134,6 @@ export function ExportModal() {
               <span className="text-[12px] text-mut">Transparent background</span>
               <Toggle on={transparent && format !== 'jpeg'} onChange={setTransparent} />
             </div>
-            {format === 'jpeg' && <div className="text-[10px] -mt-2" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>JPG has no alpha channel</div>}
 
             <div>
               <div className="label-mono mb-1.5">File name</div>

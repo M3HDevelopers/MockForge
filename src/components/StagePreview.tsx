@@ -7,7 +7,6 @@ import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
 
-/* ---------- CSS fallback (plain styles) ---------- */
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
   if (b.type === 'linear') return { background: `linear-gradient(${b.angle}deg, ${b.c1}, ${b.c2})` };
@@ -15,7 +14,6 @@ export function bgStyle(b: Background): CSSProperties {
   return { background: `radial-gradient(70% 70% at 82% 16%, ${b.c2}77, transparent 70%), radial-gradient(65% 65% at 14% 88%, ${b.c3}6e, transparent 70%), ${b.c1}` };
 }
 
-/* ---------- canvas background (preview ≡ export) ---------- */
 function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -25,8 +23,9 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
     if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
     if (depth === 'all') {
-      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
-      drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents).then(() => {
+        drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+      });
     } else {
       drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
     }
@@ -42,7 +41,6 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
   );
 }
 
-/* ---------- screenshot inside a device ---------- */
 function ScreenImage({ d, dataUrl, iw, ih }: { d: DeviceLayer; dataUrl: string; iw: number; ih: number }) {
   const h = d.w / DEVICE_META[d.kind].aspect;
   const g = deviceGeometry(d.kind, d.w, h, d.radiusMul);
@@ -78,7 +76,6 @@ function PlaceholderScreen({ d, highlight }: { d: DeviceLayer; highlight: boolea
   );
 }
 
-/* ---------- text overlay ---------- */
 function TextOverlay({ p }: { p: Project }) {
   const t = p.text;
   const selected = useStudio(s => s.selection?.kind === 'text');
@@ -126,7 +123,6 @@ function TextOverlay({ p }: { p: Project }) {
   );
 }
 
-/* ---------- logo overlay ---------- */
 function LogoOverlay({ p }: { p: Project }) {
   const setSelection = useStudio(s => s.setSelection);
   const selected = useStudio(s => s.selection?.kind === 'logo');
@@ -149,7 +145,6 @@ function LogoOverlay({ p }: { p: Project }) {
   );
 }
 
-/* ---------- device layer ---------- */
 function DeviceNode({ d, guides, setGuides }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
@@ -181,7 +176,6 @@ function DeviceNode({ d, guides, setGuides }: {
     const dy = (e.clientY - drag.sy) / zoom;
     if (drag.mode === 'move') {
       let nx = drag.ox + dx, ny = drag.oy + dy;
-      // smart center guides
       const cx = nx + d.w / 2, cy = ny + h / 2;
       const tx = p.canvas.w / 2, ty = p.canvas.h / 2;
       const th = 8 / zoom;
@@ -243,7 +237,6 @@ function DeviceNode({ d, guides, setGuides }: {
   );
 }
 
-/* ---------- stage ---------- */
 export function StagePreview() {
   const p = useStudio(s => s.project)!;
   const zoom = useStudio(s => s.zoom);

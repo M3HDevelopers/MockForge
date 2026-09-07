@@ -2,10 +2,6 @@ import { useId } from 'react';
 import type { DeviceKind, Material } from '../types';
 import { deviceGeometry, luminance, shade } from '../templates';
 
-/**
- * SVG device chrome. Geometry comes from deviceGeometry() — the exact same
- * function the canvas export renderer uses, so preview ≡ export.
- */
 const glareK = (m?: Material) => (m === 'glossy' ? 1.8 : m === 'glass' ? 1.4 : m === 'metallic' ? 1.1 : 1);
 
 export function DeviceFrame({ kind, color, w, h, part, url, radiusMul = 1, material, reflection = 0 }: {

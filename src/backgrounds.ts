@@ -1,20 +1,57 @@
-import type { Background, BgStyle, LightType } from './types';
+import type { Background, BgStyle, ImageBgState, LightType } from './types';
 import { isDark, luminance, mulberry32, rgba, shade } from './templates';
+import { findImage } from './imageAssets';
 
 /* =========================================================================
    Rich background renderer.
+   Supports THREE modes:
+   1. Procedural (vector/pattern based)
+   2. Image (high-res raster backgrounds)
+   3. Hybrid (image + vector overlay)
+   
    One function paints base + style artwork + pattern + lighting to a canvas
    context. It is used by the live preview (canvas layer) AND the export
    renderer, so what you see is exactly what you export.
    ========================================================================= */
 
-export function renderBackground(
+export async function renderBackground(
   ctx: CanvasRenderingContext2D,
   b: Background,
   w: number,
   h: number,
   accents: { a1: string; a2: string },
-): void {
+): Promise<void> {
+  const kind = b.kind || 'procedural';
+  
+  if (kind === 'image' || kind === 'hybrid') {
+    // Render image background
+    const img = b.image;
+    if (img && (img.imageId || img.customSrc)) {
+      await paintImageBackground(ctx, img, w, h);
+    } else {
+      // Fallback to procedural if no image
+      paintBase(ctx, b, w, h);
+    }
+    
+    if (kind === 'hybrid') {
+      // Add vector overlay on top
+      const style = b.style || 'plain';
+      if (style !== 'plain') {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        paintStyle(ctx, style, b, w, h, accents);
+        ctx.restore();
+      }
+      paintPattern(ctx, b, w, h);
+    }
+    
+    // Apply overlays
+    if (img) paintImageOverlays(ctx, img, w, h);
+    paintLighting(ctx, b, w, h);
+    return;
+  }
+  
+  // Procedural mode
   paintBase(ctx, b, w, h);
   const style = b.style || 'plain';
   if (style !== 'plain') paintStyle(ctx, style, b, w, h, accents);
@@ -222,6 +259,138 @@ function paintPattern(ctx: CanvasRenderingContext2D, b: Background, w: number, h
   ctx.restore();
 }
 
+/* ---------------- image background ---------------- */
+const FILTER_PRESET: Record<string, string> = {
+  original: '', grayscale: 'grayscale(1)', warm: 'sepia(0.35) saturate(1.25)',
+  cool: 'hue-rotate(-18deg) saturate(1.05)', muted: 'saturate(0.5)',
+  high: 'contrast(1.3) saturate(1.25)', soft: 'contrast(0.9) brightness(1.06)',
+  dark: 'brightness(0.72)', light: 'brightness(1.28)',
+};
+
+async function paintImageBackground(ctx: CanvasRenderingContext2D, img: ImageBgState, w: number, h: number) {
+  const src = img.customSrc || (img.imageId ? findImage(img.imageId)?.src : null);
+  if (!src) return;
+  
+  // Load image
+  const image = await loadImage(src);
+  const iw = image.naturalWidth, ih = image.naturalHeight;
+  
+  ctx.save();
+  
+  // Mask clip
+  if (img.mask === 'rounded') {
+    ctx.beginPath();
+    ctx.roundRect(w * 0.03, h * 0.04, w * 0.94, h * 0.92, Math.min(w, h) * 0.05);
+    ctx.clip();
+  } else if (img.mask === 'circle') {
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.46, 0, Math.PI * 2);
+    ctx.clip();
+  }
+  
+  // Compute destination rect
+  let dw = w, dh = h, dx = 0, dy = 0;
+  const s = img.scale;
+  if (img.fit === 'cover') {
+    const sc = Math.max(w / iw, h / ih) * s;
+    dw = iw * sc; dh = ih * sc;
+    dx = (w - dw) / 2 + img.x * w * 0.3;
+    dy = (h - dh) / 2 + img.y * h * 0.3;
+  } else if (img.fit === 'contain') {
+    const sc = Math.min(w / iw, h / ih) * s;
+    dw = iw * sc; dh = ih * sc;
+    dx = (w - dw) / 2 + img.x * w * 0.3;
+    dy = (h - dh) / 2 + img.y * h * 0.3;
+  } else if (img.fit === 'center') {
+    dw = iw * s; dh = ih * s;
+    dx = (w - dw) / 2 + img.x * w * 0.3;
+    dy = (h - dh) / 2 + img.y * h * 0.3;
+  } else {
+    // fill / stretch
+    dw = w * s; dh = h * s;
+    dx = (w - dw) / 2 + img.x * w * 0.3;
+    dy = (h - dh) / 2 + img.y * h * 0.3;
+  }
+  
+  // Filters
+  const preset = FILTER_PRESET[img.colorFilter] || '';
+  const flt = [
+    `brightness(${img.brightness})`,
+    `contrast(${img.contrast})`,
+    `saturate(${img.saturation})`,
+    img.blur > 0 ? `blur(${img.blur}px)` : '',
+    img.hue !== 0 ? `hue-rotate(${img.hue}deg)` : '',
+    preset,
+  ].filter(Boolean).join(' ');
+  if (flt) ctx.filter = flt;
+  
+  ctx.globalAlpha = img.opacity;
+  ctx.globalCompositeOperation = img.blend || 'source-over';
+  
+  if (img.rotation !== 0) {
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate((img.rotation * Math.PI) / 180);
+    ctx.translate(-w / 2, -h / 2);
+  }
+  
+  ctx.drawImage(image, dx, dy, dw, dh);
+  ctx.filter = 'none';
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function paintImageOverlays(ctx: CanvasRenderingContext2D, img: ImageBgState, w: number, h: number) {
+  // Tint
+  if (img.tint && img.tintOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = img.tintOpacity;
+    ctx.fillStyle = img.tint;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+  
+  // Overlay
+  if (img.overlay !== 'none' && img.overlayOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = img.overlayOpacity;
+    
+    if (img.overlay === 'color' || img.overlay === 'black' || img.overlay === 'white') {
+      ctx.fillStyle = img.overlayColor;
+      ctx.fillRect(0, 0, w, h);
+    } else if (img.overlay === 'gradient') {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, img.overlayColor + '00');
+      g.addColorStop(1, img.overlayColor);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    } else if (img.overlay === 'vignette') {
+      const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, img.overlayColor);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+    
+    ctx.restore();
+  }
+}
+
+/* ---------------- image loader ---------------- */
+const imgCache = new Map<string, HTMLImageElement>();
+function loadImage(src: string): Promise<HTMLImageElement> {
+  const hit = imgCache.get(src);
+  if (hit && hit.complete && hit.naturalWidth) return Promise.resolve(hit);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    if (/^https?:/.test(src)) img.crossOrigin = 'anonymous';
+    const t = setTimeout(() => reject(new Error('image load timeout')), 12000);
+    img.onload = () => { clearTimeout(t); imgCache.set(src, img); resolve(img); };
+    img.onerror = () => { clearTimeout(t); reject(new Error('image load failed')); };
+    img.src = src;
+  });
+}
+
 /* ---------------- lighting ---------------- */
 function paintLighting(ctx: CanvasRenderingContext2D, b: Background, w: number, h: number) {
   const lt = b.light?.type || 'none';
@@ -259,12 +428,12 @@ function vignette(ctx: CanvasRenderingContext2D, w: number, h: number, a: number
 }
 
 /* ---------------- swatch thumbnail (for pickers) ---------------- */
-export function bgThumb(b: Background, accents: { a1: string; a2: string }, size = 132): string {
+export async function bgThumb(b: Background, accents: { a1: string; a2: string }, size = 132): Promise<string> {
   const c = document.createElement('canvas');
   const ratio = 0.66;
   c.width = size; c.height = Math.round(size * ratio);
   const ctx = c.getContext('2d')!;
-  renderBackground(ctx, b, c.width, c.height, accents);
+  await renderBackground(ctx, b, c.width, c.height, accents);
   return c.toDataURL('image/jpeg', 0.82);
 }
 

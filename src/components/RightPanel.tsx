@@ -7,7 +7,7 @@ import {
 import { DECO_PRESETS } from '../templates';
 import { ColorInput, PosGrid, Section, Seg, SliderRow, Toggle } from './ui';
 import {
-  IcAlignH, IcAlignV, IcArrowL, IcArrowR, IcCopy, IcDown, IcEye, IcEyeOff, IcLayers, IcTrash, IcUp,
+  IcAlignH, IcAlignV, IcArrowL, IcCopy, IcDown, IcEye, IcEyeOff, IcLayers, IcTrash, IcUp,
 } from '../icons';
 
 const BG_STYLE_OPTS: { id: BgStyle; label: string }[] = [
@@ -20,11 +20,13 @@ export function RightPanel() {
   const selection = useStudio(s => s.selection);
   const project = useStudio(s => s.project)!;
   const device = selection?.kind === 'device' ? project.devices.find(d => d.id === selection.id) : undefined;
+  const icon = selection?.kind === 'icon' ? project.icons.find(i => i.id === selection.id) : undefined;
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col">
       <div className="flex-1 overflow-y-auto bg-ink">
         {device ? <DeviceProps d={device} />
+          : icon ? <IconProps i={icon} />
           : selection?.kind === 'text' ? <TextProps />
           : selection?.kind === 'logo' ? <LogoProps />
           : <BackgroundProps />}
@@ -34,7 +36,6 @@ export function RightPanel() {
   );
 }
 
-/* ---------------- device ---------------- */
 function DeviceProps({ d }: { d: DeviceLayer }) {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
@@ -107,9 +108,6 @@ function DeviceProps({ d }: { d: DeviceLayer }) {
         <SliderRow label="Tilt" value={d.tilt} min={-24} max={24} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, tilt: v }))} />
         <SliderRow label="X" value={Math.round(d.x)} min={-Math.round(d.w)} max={project.canvas.w} onStart={checkpoint} onChange={v => patch(x => ({ ...x, x: v }))} />
         <SliderRow label="Y" value={Math.round(d.y)} min={-Math.round(h)} max={project.canvas.h} onStart={checkpoint} onChange={v => patch(x => ({ ...x, y: v }))} />
-        <div className="flex items-center justify-between text-[11px] mt-1" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
-          <span>{Math.round(d.w)} × {Math.round(h)} px</span>
-        </div>
       </Section>
 
       <Section title="Frame color">
@@ -182,7 +180,6 @@ function DeviceProps({ d }: { d: DeviceLayer }) {
   );
 }
 
-/* ---------------- background ---------------- */
 function BackgroundProps() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
@@ -217,18 +214,6 @@ function BackgroundProps() {
           value={b.light?.type ?? 'none'}
           onChange={(v) => { checkpoint(); patch(x => ({ ...x, light: { type: v, intensity: x.light?.intensity ?? 0.55 } })); }}
         />
-        {(b.light?.type ?? 'none') !== 'none' && (
-          <div className="mt-2">
-            <SliderRow label="Light strength" value={Math.round((b.light?.intensity ?? 0.5) * 100)} min={10} max={100} fmt={v => `${v}%`}
-              onStart={checkpoint} onChange={v => patch(x => ({ ...x, light: { type: x.light?.type ?? 'none', intensity: v / 100 } }))} />
-          </div>
-        )}
-        {b.type === 'mesh' && (
-          <div className="mt-2">
-            <SliderRow label="Mesh points" value={b.meshPoints ?? 4} min={2} max={6} fmt={v => `${v}`}
-              onStart={checkpoint} onChange={v => patch(x => ({ ...x, meshPoints: Math.round(v) }))} />
-          </div>
-        )}
       </Section>
 
       <Section title="Background">
@@ -242,11 +227,6 @@ function BackgroundProps() {
           {b.type !== 'solid' && <ColorInput value={b.c2} onChange={(v) => { checkpoint(); patch(x => ({ ...x, c2: v })); }} label="second" />}
           {b.type === 'mesh' && <ColorInput value={b.c3} onChange={(v) => { checkpoint(); patch(x => ({ ...x, c3: v })); }} label="third" />}
         </div>
-        {b.type === 'linear' && (
-          <div className="mt-3">
-            <SliderRow label="Angle" value={b.angle} min={0} max={360} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, angle: v }))} />
-          </div>
-        )}
       </Section>
 
       <Section title="Pattern overlay">
@@ -293,11 +273,6 @@ function BackgroundProps() {
         </div>
         <SliderRow label="Intensity" value={Math.round(project.decoration.intensity * 100)} min={40} max={150} fmt={v => `${v}%`}
           onStart={checkpoint} onChange={v => dpatch(x => ({ ...x, intensity: v / 100 }))} />
-        <div className="flex items-center gap-2 mt-1">
-          <button className="btn text-[11.5px] flex-1 justify-center" onClick={() => { checkpoint(); dpatch(x => ({ ...x, seed: Math.floor(Math.random() * 1e9) })); }}>
-            <IcArrowR size={12} /> Shuffle placement
-          </button>
-        </div>
         <div className="flex items-center gap-3 mt-3">
           <ColorInput value={project.accents.a1} onChange={(v) => { checkpoint(); update(p => ({ ...p, accents: { ...p.accents, a1: v } })); }} label="accent" />
           <ColorInput value={project.accents.a2} onChange={(v) => { checkpoint(); update(p => ({ ...p, accents: { ...p.accents, a2: v } })); }} label="accent 2" />
@@ -317,18 +292,9 @@ function BackgroundProps() {
               <div key={dec.id} className="rounded-lg border border-line bg-panel p-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[11px] font-medium">{i + 1}. {label}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      className={`chip !text-[9px] ${dec.depth === 'front' ? 'on' : ''}`}
-                      onClick={() => { checkpoint(); update(p => ({ ...p, decos: p.decos.map(x => x.id === dec.id ? { ...x, depth: x.depth === 'front' ? 'back' : 'front' } : x) }), false); }}
-                      title="Toggle in front of / behind devices"
-                    >
-                      {dec.depth}
-                    </button>
-                    <button className="icon-btn !w-5 !h-5" onClick={() => { checkpoint(); update(p => ({ ...p, decos: p.decos.filter(x => x.id !== dec.id) }), false); }}>
-                      <IcTrash size={10} />
-                    </button>
-                  </div>
+                  <button className="icon-btn !w-5 !h-5" onClick={() => { checkpoint(); update(p => ({ ...p, decos: p.decos.filter(x => x.id !== dec.id) }), false); }}>
+                    <IcTrash size={10} />
+                  </button>
                 </div>
                 <SliderRow label="Opacity" value={Math.round(dec.opacity * 100)} min={5} max={100} fmt={v => `${v}%`}
                   onStart={checkpoint} onChange={v => update(p => ({ ...p, decos: p.decos.map(x => x.id === dec.id ? { ...x, opacity: v / 100 } : x) }), false)} />
@@ -343,7 +309,6 @@ function BackgroundProps() {
   );
 }
 
-/* ---------------- text ---------------- */
 function TextProps() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
@@ -359,7 +324,7 @@ function TextProps() {
             <button
               key={tp.id}
               className={`chip ${t.scale === tp.scale && t.position === tp.pos ? 'on' : ''}`}
-              onClick={() => { checkpoint(); patch(x => ({ ...x, scale: tp.scale, position: tp.pos, showBadges: tp.badges ? x.showBadges : x.showBadges })); }}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, scale: tp.scale, position: tp.pos })); }}
             >
               {tp.label}
             </button>
@@ -409,24 +374,11 @@ function TextProps() {
             );
           })}
         </div>
-        <input
-          className="input mt-2.5" placeholder="+ custom badge, press Enter"
-          style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
-          onKeyDown={(e) => {
-            const el = e.target as HTMLInputElement;
-            if (e.key === 'Enter' && el.value.trim()) {
-              checkpoint();
-              patch(x => ({ ...x, badges: [...x.badges, el.value.trim()] }));
-              el.value = '';
-            }
-          }}
-        />
       </Section>
     </>
   );
 }
 
-/* ---------------- logo ---------------- */
 function LogoProps() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
@@ -465,7 +417,65 @@ function LogoProps() {
   );
 }
 
-/* ---------------- layers ---------------- */
+function IconProps({ i }: { i: import('../types').IconLayer }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const removeIcon = useStudio(s => s.removeIcon);
+  const patch = (fn: (x: import('../types').IconLayer) => import('../types').IconLayer) =>
+    update(p => ({ ...p, icons: p.icons.map(x => x.id === i.id ? fn(x) : x) }), false);
+
+  return (
+    <>
+      <Section title="Icon" right={
+        <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => removeIcon(i.id)}><IcTrash size={12} /></button>
+      }>
+        <div className="text-[11px] mb-2" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+          Icon ID: {i.iconId}
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Size" value={Math.round(i.size * 100)} min={2} max={20} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, size: v / 100 }))} />
+        <SliderRow label="Rotation" value={i.rotation} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, rotation: v }))} />
+        <SliderRow label="Opacity" value={Math.round(i.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, opacity: v / 100 }))} />
+      </Section>
+
+      <Section title="Color">
+        <ColorInput value={i.color} onChange={(v) => { checkpoint(); patch(x => ({ ...x, color: v })); }} label="icon" />
+      </Section>
+
+      <Section title="Background">
+        <div className="grid grid-cols-3 gap-1 mb-2">
+          {(['none', 'circle', 'rounded', 'glass', 'gradient', 'badge'] as const).map(bg => (
+            <button
+              key={bg}
+              onClick={() => { checkpoint(); patch(x => ({ ...x, bgStyle: bg })); }}
+              className="py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: i.bgStyle === bg ? 'var(--color-acc)' : 'var(--color-line)',
+                background: i.bgStyle === bg ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: i.bgStyle === bg ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {bg}
+            </button>
+          ))}
+        </div>
+        {i.bgStyle !== 'none' && (
+          <ColorInput value={i.bgColor || '#ffffff'} onChange={(v) => { checkpoint(); patch(x => ({ ...x, bgColor: v })); }} label="bg color" />
+        )}
+      </Section>
+
+      <Section title="Effects">
+        <Toggle on={i.shadow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, shadow: v })); }} label="Shadow" />
+        <Toggle on={i.glow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, glow: v })); }} label="Glow" />
+      </Section>
+    </>
+  );
+}
+
 function LayersList() {
   const project = useStudio(s => s.project)!;
   const selection = useStudio(s => s.selection);
@@ -489,7 +499,6 @@ function LayersList() {
                 {d.visible ? <IcEye size={12} /> : <IcEyeOff size={12} />}
               </button>
               <span className="flex-1 text-[12px] truncate" style={{ opacity: d.visible ? 1 : 0.45 }}>{d.name}</span>
-              <span className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.kind}</span>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { e.stopPropagation(); reorderDevice(d.id, 1); }}><IcArrowL size={10} className="rotate-90" /></button>
             </div>
           );
@@ -508,7 +517,6 @@ function LayersList() {
                 {l.on ? <IcEye size={12} /> : <IcEyeOff size={12} />}
               </button>
               <span className="flex-1 text-[12px]" style={{ opacity: l.on ? 1 : 0.45 }}>{l.label}</span>
-              <span className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{l.kind}</span>
             </div>
           );
         })}

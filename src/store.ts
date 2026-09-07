@@ -140,6 +140,8 @@ interface StudioState {
   alignDevices: (axis: 'h' | 'v' | 'center') => void;
   distributeDevices: (axis: 'h' | 'v') => void;
 
+  removeIcon: (id: string) => void;
+
   randomize: () => void;
   setMood: (m: Mood) => void;
   toggleLock: (k: keyof GenLocks) => void;
@@ -419,6 +421,11 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   removeDevice: (id) => {
     get().update(p => ({ ...p, devices: p.devices.filter(d => d.id !== id) }));
+    set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  removeIcon: (id) => {
+    get().update(p => ({ ...p, icons: p.icons.filter(i => i.id !== id) }));
     set(s => s.selection?.id === id ? { selection: null } : s);
   },
 

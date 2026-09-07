@@ -2,11 +2,12 @@ import type { ReactNode } from 'react';
 import type { PosPreset } from '../types';
 import { POSITIONS } from '../templates';
 
-export function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
+/* ---------------- section wrapper ---------------- */
+export function Section({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="px-4 py-3.5 border-b border-line2">
+    <div className="px-3.5 py-3.5 border-b border-line2">
       <div className="flex items-center justify-between mb-2.5">
-        <span className="label-mono">{title}</span>
+        <div className="label-mono">{title}</div>
         {right}
       </div>
       {children}
@@ -14,20 +15,39 @@ export function Section({ title, right, children }: { title: string; right?: Rea
   );
 }
 
-export function SliderRow({ label, value, min, max, step = 1, fmt, onChange, onStart }: {
+/* ---------------- segmented control ---------------- */
+export function Seg<T extends string>({ options, value, onChange }: {
+  options: { id: T; label: string }[]; value: T; onChange: (v: T) => void;
+}) {
+  return (
+    <div className="seg">
+      {options.map(o => (
+        <button key={o.id} className={value === o.id ? 'on' : ''} onClick={() => onChange(o.id)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- slider row ---------------- */
+export function SliderRow({ label, value, min, max, step = 1, fmt, onStart, onChange }: {
   label: string; value: number; min: number; max: number; step?: number;
-  fmt?: (v: number) => string; onChange: (v: number) => void; onStart?: () => void;
+  fmt?: (v: number) => string;
+  onStart?: () => void;
+  onChange: (v: number) => void;
 }) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
-    <div className="mb-2 last:mb-0">
-      <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[12px] text-mut">{label}</span>
-        <span className="text-[11px] text-dim" style={{ fontFamily: 'var(--font-mono)' }}>{fmt ? fmt(value) : value}</span>
+    <div className="mb-2.5">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] text-mut">{label}</span>
+        <span className="text-[10.5px] font-mono text-dim">{fmt ? fmt(value) : value}</span>
       </div>
       <input
-        type="range" className="slider" min={min} max={max} step={step} value={value}
-        style={{ ['--fill' as string]: `${pct}%` }}
+        type="range" className="slider w-full"
+        min={min} max={max} step={step} value={value}
+        style={{ '--fill': `${pct}%` } as React.CSSProperties}
         onPointerDown={onStart}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
@@ -35,69 +55,59 @@ export function SliderRow({ label, value, min, max, step = 1, fmt, onChange, onS
   );
 }
 
-export function Seg<T extends string>({ options, value, onChange }: {
-  options: { id: T; label: string }[]; value: T; onChange: (v: T) => void;
-}) {
-  return (
-    <div className="seg">
-      {options.map(o => (
-        <button key={o.id} className={o.id === value ? 'on' : ''} onClick={() => onChange(o.id)}>{o.label}</button>
-      ))}
-    </div>
-  );
-}
-
+/* ---------------- toggle ---------------- */
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
-      className="flex items-center gap-2 group"
       onClick={() => onChange(!on)}
+      className="flex items-center gap-2 cursor-pointer"
     >
-      <span
-        className="relative inline-block transition-colors duration-150"
-        style={{ width: 32, height: 18, borderRadius: 999, background: on ? 'var(--color-acc)' : '#2c3038' }}
+      <div
+        className="relative w-9 h-5 rounded-full transition-colors"
+        style={{ background: on ? 'var(--color-acc)' : 'var(--color-panel3)' }}
       >
-        <span
-          className="absolute top-[2px] transition-all duration-150"
-          style={{ left: on ? 16 : 2, width: 14, height: 14, borderRadius: 999, background: on ? '#1a0e08' : '#9aa1ad' }}
+        <div
+          className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+          style={{ left: on ? 'calc(100% - 18px)' : '2px' }}
         />
-      </span>
-      {label && <span className="text-[12px] text-mut group-hover:text-fg transition-colors">{label}</span>}
+      </div>
+      {label && <span className="text-[11px] text-mut">{label}</span>}
     </button>
   );
 }
 
-export function PosGrid({ value, onChange }: { value: PosPreset; onChange: (v: PosPreset) => void }) {
+/* ---------------- color input ---------------- */
+export function ColorInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
-    <div className="grid grid-cols-3 gap-1.5" style={{ width: 104 }}>
-      {POSITIONS.map(pos => (
-        <button
-          key={pos}
-          onClick={() => onChange(pos)}
-          className="transition-all duration-120"
-          style={{
-            height: 22, borderRadius: 5,
-            border: `1px solid ${value === pos ? 'var(--color-acc)' : 'var(--color-line)'}`,
-            background: value === pos ? 'rgba(255,107,61,0.16)' : 'var(--color-ink)',
-            cursor: 'pointer',
-          }}
-          title={pos}
-        >
-          <span
-            className="inline-block"
-            style={{ width: 8, height: 5, borderRadius: 1.5, background: value === pos ? 'var(--color-acc)' : '#3a3f4b' }}
-          />
-        </button>
-      ))}
+    <div className="flex items-center gap-2">
+      <input
+        type="color" className="swatch-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {label && <span className="text-[10px] text-dim">{label}</span>}
     </div>
   );
 }
 
-export function ColorInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+/* ---------------- position grid ---------------- */
+export function PosGrid({ value, onChange }: { value: PosPreset; onChange: (v: PosPreset) => void }) {
   return (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input type="color" className="swatch-input" value={value} onChange={(e) => onChange(e.target.value)} />
-      {label && <span className="text-[11px] text-mut" style={{ fontFamily: 'var(--font-mono)' }}>{label}</span>}
-    </label>
+    <div className="grid grid-cols-3 gap-1">
+      {POSITIONS.map(p => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className="h-8 rounded border text-[9px] transition-all"
+          style={{
+            borderColor: value === p ? 'var(--color-acc)' : 'var(--color-line)',
+            background: value === p ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+            color: value === p ? 'var(--color-acc)' : 'var(--color-mut)',
+          }}
+        >
+          {p.replace('-', ' ')}
+        </button>
+      ))}
+    </div>
   );
 }

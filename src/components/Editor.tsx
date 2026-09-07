@@ -48,7 +48,6 @@ export function Editor() {
     useStudio.getState().save(silent);
   }, [update]);
 
-  /* keyboard shortcuts */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
@@ -77,7 +76,6 @@ export function Editor() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, saveNow, selection, duplicateDevice, removeDevice, setSelection, checkpoint, update]);
 
-  /* paste screenshots */
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const files = Array.from(e.clipboardData?.files ?? []).filter(f => f.type.startsWith('image/'));
@@ -93,12 +91,11 @@ export function Editor() {
     setZoom(clamp(Math.min(availW / project.canvas.w, availH / project.canvas.h), 0.1, 2));
   };
 
-  useEffect(() => { fitZoom(); /* on mount */ // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fitZoom(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="h-full flex flex-col anim-fade-in">
-      {/* top bar */}
       <div className="h-12 shrink-0 flex items-center gap-2 px-3 border-b border-line2 bg-panel relative z-20">
         <button className="icon-btn" onClick={closeEditor} title="Back to dashboard"><IcArrowL size={16} /></button>
         <LogoMark size={19} />
@@ -148,12 +145,10 @@ export function Editor() {
         />
       </div>
 
-      {/* body */}
       <div className="flex-1 flex min-h-0">
         <LeftPanel />
         <div className="flex-1 flex flex-col min-w-0">
           <StagePreview />
-          {/* status bar */}
           <div className="h-9 shrink-0 border-t border-line2 bg-panel flex items-center justify-between px-3">
             <span className="text-[10.5px] hidden md:block" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
               drag to move · corner handle to resize · ctrl+scroll to zoom · ctrl+v paste screenshot

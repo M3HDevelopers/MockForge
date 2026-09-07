@@ -59,7 +59,7 @@ export function Dashboard() {
       importProject(p);
       const created = useStudio.getState().projects[0];
       openProject(created.id);
-      toast('Demo project ready — press “Surprise me” for variations');
+      toast('Demo project ready — press "Surprise me" for variations');
     } catch {
       toast('Could not build the demo project', 'err');
     }
@@ -68,7 +68,6 @@ export function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto noise-overlay">
-      {/* top bar */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-8 h-14 border-b border-line2 bg-ink/90" style={{ backdropFilter: 'blur(8px)' }}>
         <div className="flex items-center gap-2.5">
           <LogoMark size={24} />
@@ -81,7 +80,6 @@ export function Dashboard() {
       </header>
 
       <main className="max-w-[1180px] mx-auto px-8 pb-20 relative z-10">
-        {/* intro strip */}
         <section className="pt-12 pb-10 anim-fade-up">
           <div className="label-mono mb-3" style={{ color: 'var(--color-acc)' }}>local-first · no ai runtime · canvas-true exports</div>
           <div className="flex flex-wrap items-end justify-between gap-6">
@@ -100,7 +98,6 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* stats strip */}
           <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-px rounded-xl overflow-hidden border border-line2 bg-line2">
             {([
               ['Projects', stats.projects],
@@ -115,7 +112,6 @@ export function Dashboard() {
             ))}
           </div>
 
-          {/* engine strip */}
           <div className="mt-4 card card-hover px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-3" style={{ animation: 'fadeUp .5s .3s cubic-bezier(.2,.7,.3,1) both' }}>
             <div className="flex items-center gap-2.5">
               <span className="text-acc"><IcWand size={18} /></span>
@@ -138,7 +134,6 @@ export function Dashboard() {
           </div>
         </section>
 
-        {/* projects */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-[19px] font-semibold" style={{ fontFamily: 'var(--font-disp)' }}>
@@ -164,7 +159,6 @@ export function Dashboard() {
           )}
         </section>
 
-        {/* favorites */}
         {favorites.length > 0 && (
           <section className="mb-12">
             <div className="flex items-center justify-between mb-4">
@@ -186,13 +180,9 @@ export function Dashboard() {
                 </div>
               ))}
             </div>
-            <p className="text-[10.5px] mt-2.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-              apply these from inside a project via Design Engine → Library
-            </p>
           </section>
         )}
 
-        {/* quick start */}
         <section>
           <h2 className="text-[19px] font-semibold mb-1" style={{ fontFamily: 'var(--font-disp)' }}>Start from a device</h2>
           <p className="text-[12px] mb-4" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
@@ -250,7 +240,7 @@ function ProjectCard({ p, onOpen, onDelete, onDuplicate }: { p: Project; onOpen:
 
 function QuickCard({ kind, onClick }: { kind: DeviceKind; onClick: () => void }) {
   const meta = DEVICE_META[kind];
-  const w = Math.min(118, 78 * meta.aspect); // fit frame within 118×78 box
+  const w = Math.min(118, 78 * meta.aspect);
   const h = w / meta.aspect;
   return (
     <button

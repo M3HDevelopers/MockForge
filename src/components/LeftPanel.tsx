@@ -1,23 +1,24 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { useStudio, classifyAsset } from '../store';
-import { DECO_PRESETS, DEVICE_META } from '../templates';
+import { DECO_PRESETS, DEVICE_META, uid } from '../templates';
 import { COMPOSITIONS } from '../engine';
 import { bgThumb } from '../backgrounds';
-import type { DecoDepth, DeviceKind } from '../types';
+import type { BgStyle, BgType, DecoDepth, DeviceKind } from '../types';
 import { loadDemoAssets } from '../sampleScreens';
 import { Section } from './ui';
-import { uid } from '../templates';
 import {
   IcBrowser, IcDevice, IcImage, IcLaptop, IcMonitor, IcPhone, IcPlus, IcRefresh, IcSpark,
-  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcWand, IcSearch, IcBg,
+  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg,
 } from '../icons';
+import { IMAGE_ASSETS, searchImages } from '../imageAssets';
+import { ICONS, searchIcons } from '../iconLibrary';
 
 const DEVICE_ICONS: Record<DeviceKind, (p: { size?: number }) => JSX.Element> = {
   laptop: IcLaptop, phone: IcPhone, tablet: IcTablet, browser: IcBrowser, monitor: IcMonitor,
 };
 
-type Tab = 'screens' | 'devices' | 'backdrop' | 'decor';
+type Tab = 'screens' | 'devices' | 'backdrop' | 'decor' | 'images' | 'icons';
 
 export function LeftPanel() {
   const [tab, setTab] = useState<Tab>('screens');
@@ -26,42 +27,69 @@ export function LeftPanel() {
     { id: 'devices', label: 'Layouts', icon: IcDevice },
     { id: 'backdrop', label: 'Backdrop', icon: IcBg },
     { id: 'decor', label: 'Decor', icon: IcSpark },
+    { id: 'images', label: 'Images', icon: IcImage },
+    { id: 'icons', label: 'Icons', icon: IcSpark },
   ];
   return (
     <div className="w-[264px] shrink-0 border-r border-line2 bg-panel flex flex-col">
-      <div className="flex border-b border-line2 px-1.5 pt-2 gap-0.5">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          const on = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 px-2.5 py-2 text-[11.5px] font-medium transition-all duration-150"
-              style={{
-                borderRadius: '7px 7px 0 0',
-                color: on ? 'var(--color-fg)' : 'var(--color-dim)',
-                background: on ? 'var(--color-ink)' : 'transparent',
-                boxShadow: on ? 'inset 0 2px 0 var(--color-acc)' : 'none',
-              }}
-            >
-              <Icon size={13} />
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="border-b border-line2 px-1.5 pt-2 pb-1">
+        <div className="flex gap-0.5 mb-1">
+          {tabs.slice(0, 3).map(t => {
+            const Icon = t.icon;
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10.5px] font-medium transition-all duration-150"
+                style={{
+                  borderRadius: '6px 6px 0 0',
+                  color: on ? 'var(--color-fg)' : 'var(--color-dim)',
+                  background: on ? 'var(--color-ink)' : 'transparent',
+                  boxShadow: on ? 'inset 0 2px 0 var(--color-acc)' : 'none',
+                }}
+              >
+                <Icon size={12} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-0.5">
+          {tabs.slice(3).map(t => {
+            const Icon = t.icon;
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10.5px] font-medium transition-all duration-150"
+                style={{
+                  borderRadius: '6px 6px 0 0',
+                  color: on ? 'var(--color-fg)' : 'var(--color-dim)',
+                  background: on ? 'var(--color-ink)' : 'transparent',
+                  boxShadow: on ? 'inset 0 2px 0 var(--color-acc)' : 'none',
+                }}
+              >
+                <Icon size={12} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto bg-ink">
         {tab === 'screens' && <ScreensTab />}
         {tab === 'devices' && <LayoutsTab />}
         {tab === 'backdrop' && <BackdropTab />}
         {tab === 'decor' && <DecorTab />}
+        {tab === 'images' && <ImagesTab />}
+        {tab === 'icons' && <IconsTab />}
       </div>
     </div>
   );
 }
 
-/* ---------------- screens ---------------- */
 function ScreensTab() {
   const project = useStudio(s => s.project)!;
   const addFiles = useStudio(s => s.addFiles);
@@ -184,7 +212,6 @@ function ScreensTab() {
   );
 }
 
-/* ---------------- layouts (compositions) ---------------- */
 const CATS = ['all', 'single', 'duo', 'trio', 'quad', 'multi', 'special'] as const;
 function LayoutsTab() {
   const addDevice = useStudio(s => s.addDevice);
@@ -220,7 +247,7 @@ function LayoutsTab() {
       <Section title={`Composition library · ${COMPOSITIONS.length}`}>
         <div className="relative mb-2">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
-          <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search “dark mobile”, “responsive”…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search layouts…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1 mb-2.5">
           {CATS.map(c => (
@@ -243,7 +270,7 @@ function LayoutsTab() {
               </div>
             </button>
           ))}
-          {list.length === 0 && <p className="text-[11px]" style={{ color: 'var(--color-dim)' }}>No matches for “{q}”.</p>}
+          {list.length === 0 && <p className="text-[11px]" style={{ color: 'var(--color-dim)' }}>No matches for "{q}".</p>}
         </div>
       </Section>
     </>
@@ -262,8 +289,7 @@ function CompositionGlyph({ slots }: { slots: { k: DeviceKind; x: number; y: num
   );
 }
 
-/* ---------------- backdrop ---------------- */
-const BG_STYLES: { id: import('../types').BgStyle; label: string }[] = [
+const BG_STYLES: { id: BgStyle; label: string }[] = [
   { id: 'studio', label: 'Studio' }, { id: 'abstract', label: 'Abstract 3D' }, { id: 'architectural', label: 'Architectural' },
   { id: 'grid', label: 'Grid' }, { id: 'editorial', label: 'Editorial' }, { id: 'tech', label: 'Tech' },
   { id: 'glass', label: 'Glass' }, { id: 'plain', label: 'Clean' },
@@ -271,9 +297,10 @@ const BG_STYLES: { id: import('../types').BgStyle; label: string }[] = [
 function BackdropTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
 
   const presets = useMemo(() => {
-    const out: { id: string; name: string; style: import('../types').BgStyle; type: import('../types').BgType; seed: number }[] = [];
+    const out: { id: string; name: string; style: BgStyle; type: BgType; seed: number }[] = [];
     for (const st of BG_STYLES) {
       for (let i = 0; i < 3; i++) {
         out.push({
@@ -286,39 +313,72 @@ function BackdropTab() {
     return out;
   }, []);
 
-  const apply = (style: import('../types').BgStyle, type: import('../types').BgType, seed: number) => {
-    update(p => ({ ...p, background: { ...p.background, style, type, seed } }), true);
+  const apply = (style: BgStyle, type: BgType, seed: number) => {
+    update(p => ({ ...p, background: { ...p.background, style, type, seed, kind: 'procedural' } }), true);
+  };
+
+  const setBackgroundKind = (kind: 'procedural' | 'image' | 'hybrid' | 'auto') => {
+    checkpoint();
+    update(p => ({ ...p, background: { ...p.background, kind } }));
   };
 
   return (
-    <Section title={`Backgrounds · ${presets.length}`}>
-      <p className="text-[10px] mb-2.5 leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-        tap to apply · tune colors, style & light in the right panel
-      </p>
-      <div className="grid grid-cols-3 gap-1.5">
-        {presets.map(bp => {
-          const bg = { ...project.background, style: bp.style, type: bp.type, seed: bp.seed };
-          const active = project.background.style === bp.style && project.background.type === bp.type;
-          return (
-            <button key={bp.id} onClick={() => apply(bp.style, bp.type, bp.seed)} className="group cursor-pointer text-left" title={bp.name}>
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: active ? '1.5px solid var(--color-acc)' : '1px solid var(--color-line)' }}>
-                <BgThumbView bg={bg} accents={project.accents} />
-              </div>
-              <div className="text-[9px] mt-1 truncate" style={{ fontFamily: 'var(--font-mono)', color: active ? 'var(--color-acc)' : 'var(--color-dim)' }}>{bp.name}</div>
+    <>
+      <Section title="Background Type">
+        <div className="grid grid-cols-4 gap-1 mb-2.5">
+          {(['procedural', 'image', 'hybrid', 'auto'] as const).map(k => (
+            <button
+              key={k}
+              onClick={() => setBackgroundKind(k)}
+              className="py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: (project.background.kind || 'procedural') === k ? 'var(--color-acc)' : 'var(--color-line)',
+                background: (project.background.kind || 'procedural') === k ? 'rgba(255,107,61,0.12)' : 'var(--color-panel)',
+                color: (project.background.kind || 'procedural') === k ? 'var(--color-acc)' : 'var(--color-mut)',
+              }}
+            >
+              {k}
             </button>
-          );
-        })}
-      </div>
-    </Section>
+          ))}
+        </div>
+        <p className="text-[9px] leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+          auto = engine decides based on mood
+        </p>
+      </Section>
+
+      <Section title={`Procedural Backgrounds · ${presets.length}`}>
+        <p className="text-[10px] mb-2.5 leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+          tap to apply · tune colors in the right panel
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {presets.map(bp => {
+            const bg = { ...project.background, style: bp.style, type: bp.type, seed: bp.seed };
+            const active = project.background.style === bp.style && project.background.type === bp.type;
+            return (
+              <button key={bp.id} onClick={() => apply(bp.style, bp.type, bp.seed)} className="group cursor-pointer text-left" title={bp.name}>
+                <div style={{ borderRadius: 8, overflow: 'hidden', border: active ? '1.5px solid var(--color-acc)' : '1px solid var(--color-line)' }}>
+                  <BgThumbView bg={bg} accents={project.accents} />
+                </div>
+                <div className="text-[9px] mt-1 truncate" style={{ fontFamily: 'var(--font-mono)', color: active ? 'var(--color-acc)' : 'var(--color-dim)' }}>{bp.name}</div>
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+    </>
   );
 }
 
 function BgThumbView({ bg, accents }: { bg: import('../types').Background; accents: { a1: string; a2: string } }) {
-  const src = useMemo(() => bgThumb(bg, accents, 150), [bg, accents]);
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    bgThumb(bg, accents, 150).then(setSrc);
+  }, [bg, accents]);
+  if (!src) return <div className="w-full aspect-[3/2] rounded-lg border border-line bg-panel" />;
   return <img src={src} alt="" className="w-full aspect-[3/2] object-cover rounded-lg border border-line group-hover:border-[#4a4f5c] transition-colors" draggable={false} />;
 }
 
-/* ---------------- decorations ---------------- */
 function DecorTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
@@ -362,9 +422,166 @@ function DecorTab() {
         <button className="btn btn-ghost w-full justify-center !text-[11px]" onClick={clear} disabled={!project.decos.length}>
           <IcTrash size={12} /> Clear all decorations
         </button>
-        <p className="text-[10px] mt-2 leading-relaxed" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-          edit each decoration in the right panel · “Surprise me” places them automatically
-        </p>
+      </Section>
+    </>
+  );
+}
+
+function ImagesTab() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const [cat, setCat] = useState<string>('all');
+  const [q, setQ] = useState('');
+
+  const list = useMemo(() => {
+    let imgs = IMAGE_ASSETS;
+    if (cat !== 'all') {
+      imgs = imgs.filter((i) => i.category === cat);
+    }
+    if (q) {
+      imgs = searchImages(q, cat as any);
+    }
+    return imgs;
+  }, [cat, q]);
+
+  const applyImage = (imageId: string) => {
+    checkpoint();
+    update(p => ({
+      ...p,
+      background: {
+        ...p.background,
+        kind: 'image',
+        image: {
+          kind: 'image',
+          imageId,
+          customSrc: null,
+          fit: 'cover',
+          x: 0,
+          y: 0,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          brightness: 1,
+          contrast: 1,
+          saturation: 1,
+          blur: 0,
+          hue: 0,
+          colorFilter: 'original',
+          tint: null,
+          tintOpacity: 0,
+          overlay: 'none',
+          overlayColor: '#000000',
+          overlayOpacity: 0,
+          blend: 'source-over',
+          mask: 'none',
+        },
+      },
+    }));
+  };
+
+  return (
+    <>
+      <Section title={`Image Backgrounds · ${list.length}`}>
+        <div className="relative mb-2">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
+          <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search images…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-1 mb-2.5">
+          {['all', 'abstract', '3d', 'studio', 'architectural', 'glass', 'paper', 'tech', 'editorial'].map(c => (
+            <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {list.map((img: any) => (
+            <button key={img.id} onClick={() => applyImage(img.id)} className="group relative overflow-hidden rounded-lg border border-line hover:border-acc/50 transition-all">
+              <img src={img.src} alt={img.name} className="w-full aspect-square object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                <div className="text-left">
+                  <div className="text-[10px] font-medium text-white">{img.name}</div>
+                  <div className="text-[8px] text-white/70">{img.category}</div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {list.length === 0 && (
+          <p className="text-[11px] text-center py-4" style={{ color: 'var(--color-dim)' }}>No images found</p>
+        )}
+      </Section>
+    </>
+  );
+}
+
+function IconsTab() {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const [cat, setCat] = useState<string>('all');
+  const [q, setQ] = useState('');
+
+  const list = useMemo(() => {
+    let icons = ICONS;
+    if (cat !== 'all') {
+      icons = icons.filter((i) => i.category === cat);
+    }
+    if (q) {
+      icons = searchIcons(q, cat);
+    }
+    return icons;
+  }, [cat, q]);
+
+  const addIcon = (iconId: string) => {
+    checkpoint();
+    update(p => ({
+      ...p,
+      icons: [...p.icons, {
+        id: uid(),
+        iconId,
+        x: 0.5,
+        y: 0.5,
+        size: 0.08,
+        color: '#ffffff',
+        opacity: 1,
+        rotation: 0,
+        bgStyle: 'none',
+        bgColor: null,
+        shadow: false,
+        glow: false,
+      }],
+    }));
+  };
+
+  return (
+    <>
+      <Section title={`Icon Library · ${list.length}`}>
+        <div className="relative mb-2">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
+          <input className="input !pl-7 !py-1.5 !text-[11.5px]" placeholder="Search icons…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-1 mb-2.5">
+          {['all', 'web', 'dev', 'mobile', 'ai', 'cloud', 'design', 'ecom', 'business', 'ui', 'misc'].map(c => (
+            <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {list.map((icon: any) => (
+            <button key={icon.id} onClick={() => addIcon(icon.id)} className="group p-2 rounded-lg border border-line hover:border-acc/50 hover:bg-panel2 transition-all flex flex-col items-center gap-1">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="text-mut group-hover:text-acc transition-colors">
+                <path d={icon.d} />
+              </svg>
+              <div className="text-[8px] text-center truncate w-full" style={{ color: 'var(--color-dim)' }}>{icon.name}</div>
+            </button>
+          ))}
+        </div>
+        {list.length === 0 && (
+          <p className="text-[11px] text-center py-4" style={{ color: 'var(--color-dim)' }}>No icons found</p>
+        )}
+      </Section>
+      <Section title={`On canvas · ${project.icons.length}`}>
+        <button className="btn btn-ghost w-full justify-center !text-[11px]" onClick={() => { checkpoint(); update(p => ({ ...p, icons: [] }), false); }} disabled={!project.icons.length}>
+          <IcTrash size={12} /> Clear all icons
+        </button>
       </Section>
     </>
   );
