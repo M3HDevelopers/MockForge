@@ -1073,7 +1073,7 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
           <svg className="absolute pointer-events-none" style={{ left: -7, top: -7, width: d.w + 14, height: h + 14, zIndex: 50 }}>
             <rect className="sel-ring-svg" x={1} y={1} width={d.w + 12} height={h + 12} rx={8} />
           </svg>
-          <div className="absolute" style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+          <div className="absolute" style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap', zIndex: 10001, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
             {d.name.toUpperCase()}
           </div>
           <div
