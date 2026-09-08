@@ -68,6 +68,9 @@ export interface ImageBgState {
   mask: ImageMask;
 }
 
+export type IconMaterial = 'default' | 'glass' | 'glossy' | 'metallic' | 'ceramic' | 'holographic' | 'crystal';
+export type IconPlacementMode = 'free' | 'around-device' | 'behind-device' | 'orbit' | 'cluster' | 'tech-stack';
+
 export interface IconLayer {
   id: string;
   iconId: string;
@@ -81,6 +84,8 @@ export interface IconLayer {
   bgColor: string | null;
   shadow: boolean;
   glow: boolean;
+  material?: IconMaterial;
+  gradient?: { from: string; to: string };
 }
 
 /* ================= interfaces ================= */
