@@ -103,7 +103,7 @@ export function ExportModal() {
               <div className="label-mono mb-1.5">Format</div>
               <Seg
                 options={[{ id: 'png', label: 'PNG' }, { id: 'jpeg', label: 'JPG' }, { id: 'webp', label: 'WebP' }] as { id: Format; label: string }[]}
-                value={format} onChange={setFormat}
+                value={format} onChange={(v) => setFormat(v as Format)}
               />
             </div>
 

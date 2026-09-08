@@ -325,8 +325,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     saveTimer = setTimeout(() => get().save(true), 1400);
   },
 
-  addFiles: async (files) => {
-    const list = Array.from(files).filter(f => f.type.startsWith('image/'));
+  addFiles: async (files: FileList | File[]) => {
+    const list = Array.from(files).filter((f: File) => f.type.startsWith('image/'));
     if (!list.length) { get().toast('Only image files are supported', 'err'); return; }
     const cur = get().project;
     if (!cur) return;
