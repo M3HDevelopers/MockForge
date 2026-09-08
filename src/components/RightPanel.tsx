@@ -820,15 +820,37 @@ function LayersList() {
         })}
 
         {/* Text Boxes */}
-        {project.textboxes?.map((tb: any) => {
+        {project.textboxes?.map((tb: any, idx: number) => {
           const on = selection?.kind === 'textbox' && selection.id === tb.id;
           return (
             <div key={tb.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'textbox', id: tb.id })}
               style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
-              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, textboxes: p.textboxes.map(x => x.id === tb.id ? { ...x, opacity: x.opacity === 0 ? 1 : 0 } : x) }), false); }}>
-                <IcEye size={12} />
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                update(p => ({ ...p, textboxes: p.textboxes.map(x => x.id === tb.id ? { ...x, visible: x.visible === false ? true : false } : x) }), false); 
+              }}>
+                {tb.visible === false ? <IcEyeOff size={12} /> : <IcEye size={12} />}
               </button>
-              <span className="flex-1 text-[12px] truncate">{tb.name || 'Text Box'}</span>
+              <span className="flex-1 text-[12px] truncate" style={{ opacity: tb.visible === false ? 0.45 : 1 }}>{tb.name || 'Text Box'}</span>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                const arr = [...project.textboxes];
+                if (idx > 0) [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
+                update(p => ({ ...p, textboxes: arr }), false);
+              }}>
+                <IcUp size={10} />
+              </button>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                const arr = [...project.textboxes];
+                if (idx < arr.length - 1) [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+                update(p => ({ ...p, textboxes: arr }), false);
+              }}>
+                <IcDown size={10} />
+              </button>
               <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, textboxes: p.textboxes.filter(x => x.id !== tb.id) }), false); }}>
                 <IcTrash size={10} />
               </button>
@@ -837,15 +859,37 @@ function LayersList() {
         })}
 
         {/* Icons */}
-        {project.icons?.map((icon: any) => {
+        {project.icons?.map((icon: any, idx: number) => {
           const on = selection?.kind === 'icon' && selection.id === icon.id;
           return (
             <div key={icon.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'icon', id: icon.id })}
               style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
-              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, icons: p.icons.map(x => x.id === icon.id ? { ...x, opacity: x.opacity === 0 ? 1 : 0 } : x) }), false); }}>
-                <IcEye size={12} />
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                useStudio.getState().updateIcon(icon.id, { visible: icon.visible === false ? true : false });
+              }}>
+                {icon.visible === false ? <IcEyeOff size={12} /> : <IcEye size={12} />}
               </button>
-              <span className="flex-1 text-[12px] truncate">Icon</span>
+              <span className="flex-1 text-[12px] truncate" style={{ opacity: icon.visible === false ? 0.45 : 1 }}>Icon</span>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                const arr = [...project.icons];
+                if (idx > 0) [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
+                update(p => ({ ...p, icons: arr }), false);
+              }}>
+                <IcUp size={10} />
+              </button>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                const arr = [...project.icons];
+                if (idx < arr.length - 1) [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+                update(p => ({ ...p, icons: arr }), false);
+              }}>
+                <IcDown size={10} />
+              </button>
               <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, icons: p.icons.filter(x => x.id !== icon.id) }), false); }}>
                 <IcTrash size={10} />
               </button>
@@ -854,15 +898,37 @@ function LayersList() {
         })}
 
         {/* Decorations */}
-        {project.decos?.map((deco: any) => {
+        {project.decos?.map((deco: any, idx: number) => {
           const on = selection?.kind === 'deco' && selection.id === deco.id;
           return (
             <div key={deco.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'deco', id: deco.id })}
               style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
-              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, decos: p.decos.map(x => x.id === deco.id ? { ...x, opacity: x.opacity === 0 ? 1 : 0 } : x) }), false); }}>
-                <IcEye size={12} />
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                update(p => ({ ...p, decos: p.decos.map(x => x.id === deco.id ? { ...x, visible: x.visible === false ? true : false } : x) }), false); 
+              }}>
+                {deco.visible === false ? <IcEyeOff size={12} /> : <IcEye size={12} />}
               </button>
-              <span className="flex-1 text-[12px] truncate">Decoration</span>
+              <span className="flex-1 text-[12px] truncate" style={{ opacity: deco.visible === false ? 0.45 : 1 }}>Decoration</span>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                const arr = [...project.decos];
+                if (idx > 0) [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
+                update(p => ({ ...p, decos: arr }), false);
+              }}>
+                <IcUp size={10} />
+              </button>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint(); 
+                const arr = [...project.decos];
+                if (idx < arr.length - 1) [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+                update(p => ({ ...p, decos: arr }), false);
+              }}>
+                <IcDown size={10} />
+              </button>
               <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, decos: p.decos.filter(x => x.id !== deco.id) }), false); }}>
                 <IcTrash size={10} />
               </button>

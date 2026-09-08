@@ -35,6 +35,8 @@ export interface TextBox {
   shadow: boolean;
   glow: boolean;
   glowColor: string;
+  visible?: boolean;
+  locked?: boolean;
 }
 
 /* ================= new enums ================= */

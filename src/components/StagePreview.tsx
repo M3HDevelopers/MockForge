@@ -102,18 +102,27 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
         decos: p.decos.map(d => d.id === deco.id ? { ...d, scale: newScale } : d)
       }), false);
     } else if (drag.mode === 'rotate') {
+      // Get the parent container for proper coordinate calculation
+      const container = e.currentTarget.parentElement?.parentElement;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
       const centerX = deco.x * canvasW;
       const centerY = deco.y * canvasH;
-      const mouseX = (e.clientX / zoom) - (canvasW / 2);
-      const mouseY = (e.clientY / zoom) - (canvasH / 2);
+      const mouseX = (e.clientX - rect.left) / zoom;
+      const mouseY = (e.clientY - rect.top) / zoom;
+      
       const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
-      const startAngle = drag.startAngle || 0;
-      const newRotation = deco.rotation + (angle - startAngle);
+      
+      if (drag.startAngle === undefined) {
+        drag.startAngle = angle - deco.rotation;
+      }
+      
+      const newRotation = angle - drag.startAngle;
       update(p => ({
         ...p,
         decos: p.decos.map(d => d.id === deco.id ? { ...d, rotation: newRotation } : d)
       }), false);
-      drag.startAngle = angle;
     }
   };
   
@@ -815,15 +824,24 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
       const newSize = Math.max(0.02, drag.os + delta);
       updateIcon(icon.id, { size: newSize });
     } else if (drag.mode === 'rotate') {
+      // Get the parent container for proper coordinate calculation
+      const container = e.currentTarget.parentElement?.parentElement;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
       const centerX = icon.x * canvasW;
       const centerY = icon.y * canvasH;
-      const mouseX = (e.clientX / zoom) - (canvasW / 2);
-      const mouseY = (e.clientY / zoom) - (canvasH / 2);
+      const mouseX = (e.clientX - rect.left) / zoom;
+      const mouseY = (e.clientY - rect.top) / zoom;
+      
       const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
-      const startAngle = drag.startAngle || 0;
-      const newRotation = icon.rotation + (angle - startAngle);
+      
+      if (drag.startAngle === undefined) {
+        drag.startAngle = angle - icon.rotation;
+      }
+      
+      const newRotation = angle - drag.startAngle;
       updateIcon(icon.id, { rotation: newRotation });
-      drag.startAngle = angle;
     }
   };
 
@@ -944,6 +962,9 @@ function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { t
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
   const selected = useStudio(s => s.selection?.kind === 'textbox' && (s.selection.id === textbox.id || s.selection.ids?.includes(textbox.id)));
+  
+  // Hide if visible is false
+  if (textbox.visible === false) return null;
   
   const x = textbox.x * canvasW;
   const y = textbox.y * canvasH;
@@ -1167,15 +1188,17 @@ function CanvasImageLayer({ img, project, onDragStart, onDragEnd }: {
       const nh = Math.max(50, drag.oh + dy);
       updateCanvasImage(img.id, { width: nw, height: nh });
     } else if (drag.mode === 'rotate') {
-      // Fix rotation - should rotate based on horizontal movement, not vertical
       const centerX = img.x + img.width / 2;
       const centerY = img.y + img.height / 2;
-      const currentAngle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
-      const startAngle = drag.startAngle || 0;
-      const deltaAngle = currentAngle - startAngle;
-      const newRotation = img.rotation + deltaAngle;
+      
+      const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
+      
+      if (drag.startAngle === undefined) {
+        drag.startAngle = angle - img.rotation;
+      }
+      
+      const newRotation = angle - drag.startAngle;
       updateCanvasImage(img.id, { rotation: newRotation });
-      drag.startAngle = currentAngle;
     }
   };
   
