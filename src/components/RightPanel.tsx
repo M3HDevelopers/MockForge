@@ -2,7 +2,7 @@ import { useStudio } from '../store';
 import type { BgStyle, DeviceLayer, LightType, Material, PatternKind, ShadowPreset } from '../types';
 import {
   clamp, DECO_SETS, DEVICE_META, FIT_MODES, LIGHTING, MATERIALS, PATTERNS, SHADOWS,
-  TECH_BADGES, TYPO_PRESETS, textOn,
+  TECH_BADGES, TYPO_PRESETS, textOn, suggestFitMode,
 } from '../templates';
 import { DECO_PRESETS } from '../templates';
 import { ColorInput, PosGrid, Section, Seg, SliderRow, Toggle } from './ui';
@@ -91,15 +91,60 @@ function DeviceProps({ d }: { d: DeviceLayer }) {
           ))}
         </div>
 
-        <div className="mt-3">
-          <div className="label-mono mb-1.5">Fit mode</div>
-          <Seg options={FIT_MODES} value={d.fit} onChange={(v) => { checkpoint(); patch(x => ({ ...x, fit: v })); }} />
-        </div>
-        <div className="mt-3">
-          <SliderRow label="Zoom" value={d.zoom} min={1} max={2.5} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, zoom: v }))} />
-          <SliderRow label="Pan X" value={d.panX} min={-1} max={1} step={0.01} fmt={v => v.toFixed(2)} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panX: v }))} />
-          <SliderRow label="Pan Y" value={d.panY} min={-1} max={1} step={0.01} fmt={v => v.toFixed(2)} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panY: v }))} />
-        </div>
+        {d.assetId && (
+          <>
+            <div className="mt-3">
+              <div className="label-mono mb-1.5">Fit mode</div>
+              <Seg options={FIT_MODES} value={d.fit} onChange={(v) => { checkpoint(); patch(x => ({ ...x, fit: v })); }} />
+            </div>
+            
+            <div className="mt-3 flex gap-1.5">
+              <button 
+                className="btn flex-1 !text-[10px] !py-1.5 justify-center"
+                onClick={() => { 
+                  checkpoint(); 
+                  // Auto-fit: calculate best fit mode based on aspect ratios
+                  const asset = project.assets.find(a => a.id === d.assetId);
+                  if (asset) {
+                    const screenAspect = (d.w / DEVICE_META[d.kind].aspect) / d.w;
+                    const imageAspect = asset.w / asset.h;
+                    const suggestedFit = suggestFitMode(screenAspect, imageAspect);
+                    patch(x => ({ ...x, zoom: 1, panX: 0, panY: 0, fit: suggestedFit }));
+                  } else {
+                    patch(x => ({ ...x, zoom: 1, panX: 0, panY: 0, fit: 'cover' }));
+                  }
+                }}
+              >
+                Auto-fit
+              </button>
+              <button 
+                className="btn flex-1 !text-[10px] !py-1.5 justify-center"
+                onClick={() => { 
+                  checkpoint(); 
+                  patch(x => ({ ...x, zoom: 1, panX: 0, panY: 0 })); 
+                }}
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <SliderRow label="Zoom" value={d.zoom} min={0.5} max={3} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, zoom: v }))} />
+              <SliderRow label="Position X" value={d.panX} min={-1} max={1} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panX: v }))} />
+              <SliderRow label="Position Y" value={d.panY} min={-1} max={1} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panY: v }))} />
+            </div>
+
+            <div className="mt-2 p-2 rounded-lg border border-line bg-panel">
+              <div className="text-[9px] text-dim mb-1">Quick tips:</div>
+              <ul className="text-[9px] text-mut space-y-0.5">
+                <li>• Use "Auto-fit" for perfect fit</li>
+                <li>• Zoom in/out to adjust size</li>
+                <li>• Pan to reposition screenshot</li>
+                <li>• "Cover" mode fills entire frame</li>
+              </ul>
+            </div>
+          </>
+        )}
       </Section>
 
       <Section title="Transform">

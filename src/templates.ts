@@ -96,15 +96,63 @@ export function deviceGeometry(kind: DeviceKind, w: number, h: number, radiusMul
 /** Where the screenshot image lands inside the screen rect (fit + zoom + pan). */
 export function computeFit(s: ScreenRect, iw: number, ih: number, fit: FitMode, zoom: number, panX: number, panY: number) {
   let dw: number, dh: number;
-  if (fit === 'stretch') { dw = s.w; dh = s.h; }
-  else {
-    const sc = fit === 'cover' ? Math.max(s.w / iw, s.h / ih) : Math.min(s.w / iw, s.h / ih);
-    dw = iw * sc; dh = ih * sc;
+  
+  // Calculate aspect ratios
+  const screenAspect = s.w / s.h;
+  const imageAspect = iw / ih;
+  
+  if (fit === 'stretch') {
+    // Stretch to fill - may distort aspect ratio
+    dw = s.w;
+    dh = s.h;
+  } else if (fit === 'cover') {
+    // Cover: scale to fill entire screen, may crop
+    const scale = Math.max(s.w / iw, s.h / ih);
+    dw = iw * scale;
+    dh = ih * scale;
+  } else {
+    // Contain: scale to fit within screen, may have gaps
+    const scale = Math.min(s.w / iw, s.h / ih);
+    dw = iw * scale;
+    dh = ih * scale;
   }
-  dw *= zoom; dh *= zoom;
+  
+  // Apply zoom (maintains aspect ratio)
+  dw *= zoom;
+  dh *= zoom;
+  
+  // Calculate center position with pan offset
   const cx = s.x + s.w / 2 + (panX * s.w) / 2;
   const cy = s.y + s.h / 2 + (panY * s.h) / 2;
-  return { dx: cx - dw / 2, dy: cy - dh / 2, dw, dh };
+  
+  // Position image centered at (cx, cy)
+  const dx = cx - dw / 2;
+  const dy = cy - dh / 2;
+  
+  return { dx, dy, dw, dh };
+}
+
+// Helper function to suggest best fit mode based on aspect ratios
+export function suggestFitMode(screenAspect: number, imageAspect: number): FitMode {
+  const ratio = screenAspect / imageAspect;
+  
+  // If aspect ratios are very close, use contain (no gaps, no cropping)
+  if (ratio > 0.9 && ratio < 1.1) {
+    return 'contain';
+  }
+  
+  // If screen is much wider than image, use cover to fill
+  if (ratio > 1.3) {
+    return 'cover';
+  }
+  
+  // If image is much wider than screen, use cover to fill
+  if (ratio < 0.77) {
+    return 'cover';
+  }
+  
+  // Default to cover for best visual result
+  return 'cover';
 }
 
 /* ---------------- canvas / aspect ---------------- */
