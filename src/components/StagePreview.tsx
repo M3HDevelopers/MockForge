@@ -7,6 +7,7 @@ import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
 import { ICONS } from '../iconLibrary';
+import { AdvancedGrid } from './AdvancedGrid';
 
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
@@ -970,6 +971,9 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
   const wrapRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
   const [distanceInfo, setDistanceInfo] = useState<{ left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null>(null);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -982,6 +986,33 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [zoom, setZoom]);
+
+  // Pan handlers
+  const handlePanStart = (e: React.PointerEvent) => {
+    if (toolMode !== 'pan') return;
+    setIsPanning(true);
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      offsetX: panOffset.x,
+      offsetY: panOffset.y,
+    };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePanMove = (e: React.PointerEvent) => {
+    if (!isPanning || toolMode !== 'pan') return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPanOffset({
+      x: panStartRef.current.offsetX + dx,
+      y: panStartRef.current.offsetY + dy,
+    });
+  };
+
+  const handlePanEnd = () => {
+    setIsPanning(false);
+  };
 
   const W = p.canvas.w * zoom, H = p.canvas.h * zoom;
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
@@ -1002,11 +1033,25 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
   };
 
   return (
-    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ 
-      touchAction: 'none',
-      cursor: toolMode === 'zoom' ? 'zoom-in' : toolMode === 'pan' ? 'grab' : 'default'
-    }}>
-      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
+    <div 
+      ref={wrapRef} 
+      className="workspace-bg relative flex-1 overflow-auto noise-overlay" 
+      style={{ 
+        touchAction: 'none',
+        cursor: toolMode === 'zoom' ? 'zoom-in' : toolMode === 'pan' ? (isPanning ? 'grabbing' : 'grab') : 'default'
+      }}
+      onPointerDown={handlePanStart}
+      onPointerMove={handlePanMove}
+      onPointerUp={handlePanEnd}
+      onPointerCancel={handlePanEnd}
+    >
+      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ 
+        width: '100%', 
+        minHeight: '100%', 
+        minWidth: 'fit-content',
+        transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+        transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+      }}>
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
@@ -1028,6 +1073,32 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
+            
+            {/* Advanced Grid - Canva-style distance guides */}
+            {selection?.kind === 'device' && (() => {
+              const selectedDevice = p.devices.find(d => d.id === selection.id);
+              if (!selectedDevice) return null;
+              const selectedH = selectedDevice.w / DEVICE_META[selectedDevice.kind].aspect;
+              return (
+                <AdvancedGrid 
+                  canvasWidth={p.canvas.w}
+                  canvasHeight={p.canvas.h}
+                  zoom={zoom}
+                  selectedObject={{
+                    x: selectedDevice.x,
+                    y: selectedDevice.y,
+                    width: selectedDevice.w,
+                    height: selectedH
+                  }}
+                  otherObjects={p.devices.filter(d => d.id !== selection.id).map(d => ({
+                    x: d.x,
+                    y: d.y,
+                    width: d.w,
+                    height: d.w / DEVICE_META[d.kind].aspect
+                  }))}
+                />
+              );
+            })()}
 
             {guides.v != null && (
               <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: guides.v, width: 1, background: 'var(--color-acc)', opacity: 0.6 }} />

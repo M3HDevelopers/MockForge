@@ -323,9 +323,16 @@ export function Editor() {
           <IcZoomIn size={15} />
         </button>
         <button 
+          className="icon-btn"
+          onClick={() => setZoom(zoom * 0.8)}
+          title="Zoom Out (Ctrl+-)"
+        >
+          <IcZoomOut size={15} />
+        </button>
+        <button 
           className={`icon-btn ${toolMode === 'pan' ? 'bg-acc/20 text-acc' : ''}`} 
           onClick={() => setToolMode(toolMode === 'pan' ? 'select' : 'pan')}
-          title="Pan Tool (H) - Hold Space or click to pan"
+          title="Pan Tool (H) - Drag to pan canvas"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/>
@@ -372,12 +379,12 @@ export function Editor() {
 
       {/* Preview Mode - Full Screen */}
       {previewMode ? (
-        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center" onClick={() => setPreviewMode(false)}>
-          <div className="relative" style={{ maxWidth: '95vw', maxHeight: '95vh' }}>
+        <div className="fixed inset-0 z-50 bg-ink flex items-center justify-center overflow-hidden">
+          <div className="w-full h-full flex items-center justify-center">
             <StagePreview />
           </div>
           <button 
-            className="absolute top-4 right-4 btn"
+            className="absolute top-6 right-6 btn btn-acc"
             onClick={() => setPreviewMode(false)}
           >
             Exit Preview (ESC)
@@ -390,8 +397,8 @@ export function Editor() {
             <StagePreview toolMode={toolMode} />
             <div className="h-9 shrink-0 border-t border-line2 bg-panel flex items-center justify-between px-3">
               <span className="text-[10.5px] hidden md:block" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-                {toolMode === 'zoom' ? '🔍 Zoom mode - Click to zoom in' : 
-                 toolMode === 'pan' ? '✋ Pan mode - Drag to pan canvas' :
+                {toolMode === 'zoom' ? 'Zoom mode - Click to zoom in' : 
+                 toolMode === 'pan' ? 'Pan mode - Drag to pan canvas' :
                  'drag to move · corner handle to resize · ctrl+scroll to zoom · ctrl+v paste screenshot'}
               </span>
               <div className="flex items-center gap-1">
