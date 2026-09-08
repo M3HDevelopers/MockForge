@@ -7,6 +7,8 @@ import { StagePreview } from './StagePreview';
 import { ExportModal } from './ExportModal';
 import { GeneratePanel } from './GeneratePanel';
 import { ShortcutsModal } from './ShortcutsModal';
+import { ContextMenu } from './ContextMenu';
+import { CommandPalette } from './CommandPalette';
 import { clamp } from '../templates';
 import {
   IcArrowL, IcDice, IcDownload, IcExport, IcFit, IcRedo, IcSave, IcStar, IcUndo, IcUpload, IcWand, IcZoomIn, IcZoomOut, LogoMark, IcEye,
@@ -41,6 +43,8 @@ export function Editor() {
   const mockupRef = useRef<HTMLInputElement>(null);
   const [toolMode, setToolMode] = useState<'select' | 'zoom' | 'pan'>('select');
   const [previewMode, setPreviewMode] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   const saveNow = useCallback(async (silent = false) => {
     const p = useStudio.getState().project;
@@ -268,6 +272,18 @@ export function Editor() {
           }), false);
         }
       }
+      else if (mod && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(prev => !prev);
+      }
+      else if (mod && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        useStudio.getState().copySelection();
+      }
+      else if (mod && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        useStudio.getState().pasteClipboard();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -388,7 +404,7 @@ export function Editor() {
       {previewMode ? (
         <div className="fixed inset-0 z-50 bg-ink flex items-center justify-center overflow-hidden">
           <div className="w-full h-full flex items-center justify-center">
-            <StagePreview />
+            <StagePreview onContextMenu={(e) => setContextMenu({ x: e.clientX, y: e.clientY })} />
           </div>
           <button 
             className="absolute top-6 right-6 btn btn-acc"
@@ -401,7 +417,7 @@ export function Editor() {
         <div className="flex-1 flex min-h-0 overflow-hidden">
           <LeftPanel />
           <div className="flex-1 flex flex-col min-w-0 h-full">
-            <StagePreview toolMode={toolMode} />
+            <StagePreview toolMode={toolMode} onContextMenu={(e) => setContextMenu({ x: e.clientX, y: e.clientY })} />
             <div className="h-9 shrink-0 border-t border-line2 bg-panel flex items-center justify-between px-3">
               <span className="text-[10.5px] hidden md:block" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
                 {toolMode === 'zoom' ? 'Zoom mode - Click to zoom in' : 
@@ -422,6 +438,16 @@ export function Editor() {
 
       <ExportModal />
       <GeneratePanel />
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {commandPaletteOpen && (
+        <CommandPalette onClose={() => setCommandPaletteOpen(false)} />
+      )}
       {project.devices.length === 0 && project.assets.length === 0 && (
         <FirstRunHint onPick={() => toast('Add a device or drop a screenshot to begin', 'info')} />
       )}

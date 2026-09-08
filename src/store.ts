@@ -157,11 +157,18 @@ interface StudioState {
   addIconsAroundDevice: (deviceId: string, iconIds: string[]) => void;
   addTechStackIcons: (techStack: string[]) => void;
   autoClusterIcons: () => void;
-
+  
   // Text box actions
   addTextBox: () => void;
   removeTextBox: (id: string) => void;
-
+  
+  // Clipboard & Lock System
+  clipboard: { type: string; data: any } | null;
+  copySelection: () => void;
+  pasteClipboard: () => void;
+  lockObject: (kind: string, id: string) => void;
+  unlockObject: (kind: string, id: string) => void;
+  lockedObjects: Set<string>;
   randomize: () => void;
   setMood: (m: Mood) => void;
   toggleLock: (k: keyof GenLocks) => void;
@@ -238,9 +245,116 @@ export const useStudio = create<StudioState>((set, get) => ({
   
   themeVariations: [],
   setThemeVariations: (variations) => set({ themeVariations: variations }),
-
-  boot: () => {
-    if (get().booted) return;
+  
+  // Clipboard & Lock System
+  clipboard: null,
+  lockedObjects: new Set(),
+  
+  copySelection: () => {
+    const { selection, project } = get();
+    if (!selection || !project) return;
+    
+    let data = null;
+    let type = '';
+    
+    if (selection.kind === 'device') {
+      const device = project.devices.find(d => d.id === selection.id);
+      if (device) {
+        data = { ...device };
+        type = 'device';
+      }
+    } else if (selection.kind === 'icon') {
+      const icon = project.icons.find(i => i.id === selection.id);
+      if (icon) {
+        data = { ...icon };
+        type = 'icon';
+      }
+    } else if (selection.kind === 'textbox') {
+      const textbox = project.textboxes.find(t => t.id === selection.id);
+      if (textbox) {
+        data = { ...textbox };
+        type = 'textbox';
+      }
+    } else if (selection.kind === 'deco') {
+      const deco = project.decos.find(d => d.id === selection.id);
+      if (deco) {
+        data = { ...deco };
+        type = 'deco';
+      }
+    }
+    
+    if (data) {
+      set({ clipboard: { type, data } });
+      get().toast('Copied to clipboard');
+    }
+  },
+  
+  pasteClipboard: () => {
+    const { clipboard, project } = get();
+    if (!clipboard || !project) return;
+    
+    get().checkpoint();
+    
+    const newData = { ...clipboard.data, id: uid() };
+    
+    // Offset the pasted object slightly
+    if ('x' in newData && 'y' in newData) {
+      newData.x += 20;
+      newData.y += 20;
+    }
+    
+    if (clipboard.type === 'device') {
+      set(s => ({
+        project: s.project ? {
+          ...s.project,
+          devices: [...s.project.devices, newData]
+        } : null
+      }));
+    } else if (clipboard.type === 'icon') {
+      set(s => ({
+        project: s.project ? {
+          ...s.project,
+          icons: [...s.project.icons, newData]
+        } : null
+      }));
+    } else if (clipboard.type === 'textbox') {
+      set(s => ({
+        project: s.project ? {
+          ...s.project,
+          textboxes: [...s.project.textboxes, newData]
+        } : null
+      }));
+    } else if (clipboard.type === 'deco') {
+      set(s => ({
+        project: s.project ? {
+          ...s.project,
+          decos: [...s.project.decos, newData]
+        } : null
+      }));
+    }
+    
+    get().toast('Pasted from clipboard');
+  },
+  
+  lockObject: (kind, id) => {
+    const key = `${kind}:${id}`;
+    set(s => ({
+      lockedObjects: new Set([...s.lockedObjects, key])
+    }));
+    get().toast('Object locked');
+  },
+  
+  unlockObject: (kind, id) => {
+    const key = `${kind}:${id}`;
+    set(s => {
+      const newSet = new Set(s.lockedObjects);
+      newSet.delete(key);
+      return { lockedObjects: newSet };
+    });
+    get().toast('Object unlocked');
+  },
+  
+  boot: () => {    if (get().booted) return;
     let projects: Project[] = [];
     try { projects = (JSON.parse(localStorage.getItem(LS_PROJECTS) || '[]') as Project[]).map(migrate); } catch { /* corrupted */ }
     set({ projects, booted: true });

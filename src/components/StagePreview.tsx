@@ -1107,7 +1107,7 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
   );
 }
 
-export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'zoom' | 'pan' }) {
+export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?: 'select' | 'zoom' | 'pan'; onContextMenu?: (e: React.MouseEvent) => void }) {
   const p = useStudio(s => s.project)!;
   const zoom = useStudio(s => s.zoom);
   const setZoom = useStudio(s => s.setZoom);
@@ -1201,6 +1201,12 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
       onPointerMove={handlePanMove}
       onPointerUp={handlePanEnd}
       onPointerCancel={handlePanEnd}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (onContextMenu) {
+          onContextMenu(e);
+        }
+      }}
     >
       <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ 
         width: '100%', 
