@@ -798,6 +798,7 @@ function LayersList() {
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const reorderDevice = useStudio(s => s.reorderDevice);
+  const reorderObject = useStudio(s => s.reorderObject);
 
   const rowCls = (on: boolean) =>
     `w-full flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors text-left ${on ? 'bg-[rgba(255,107,61,0.1)]' : 'hover:bg-panel2'}`;
@@ -835,19 +836,15 @@ function LayersList() {
               <span className="flex-1 text-[12px] truncate" style={{ opacity: tb.visible === false ? 0.45 : 1 }}>{tb.name || 'Text Box'}</span>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
                 e.stopPropagation(); 
-                checkpoint(); 
-                const arr = [...project.textboxes];
-                if (idx > 0) [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
-                update(p => ({ ...p, textboxes: arr }), false);
+                checkpoint();
+                reorderObject('textbox', tb.id, 'up');
               }}>
                 <IcUp size={10} />
               </button>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
                 e.stopPropagation(); 
-                checkpoint(); 
-                const arr = [...project.textboxes];
-                if (idx < arr.length - 1) [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-                update(p => ({ ...p, textboxes: arr }), false);
+                checkpoint();
+                reorderObject('textbox', tb.id, 'down');
               }}>
                 <IcDown size={10} />
               </button>
@@ -874,19 +871,15 @@ function LayersList() {
               <span className="flex-1 text-[12px] truncate" style={{ opacity: icon.visible === false ? 0.45 : 1 }}>Icon</span>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
                 e.stopPropagation(); 
-                checkpoint(); 
-                const arr = [...project.icons];
-                if (idx > 0) [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
-                update(p => ({ ...p, icons: arr }), false);
+                checkpoint();
+                reorderObject('icon', icon.id, 'up');
               }}>
                 <IcUp size={10} />
               </button>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
                 e.stopPropagation(); 
-                checkpoint(); 
-                const arr = [...project.icons];
-                if (idx < arr.length - 1) [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-                update(p => ({ ...p, icons: arr }), false);
+                checkpoint();
+                reorderObject('icon', icon.id, 'down');
               }}>
                 <IcDown size={10} />
               </button>
@@ -913,19 +906,15 @@ function LayersList() {
               <span className="flex-1 text-[12px] truncate" style={{ opacity: deco.visible === false ? 0.45 : 1 }}>Decoration</span>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
                 e.stopPropagation(); 
-                checkpoint(); 
-                const arr = [...project.decos];
-                if (idx > 0) [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
-                update(p => ({ ...p, decos: arr }), false);
+                checkpoint();
+                reorderObject('deco', deco.id, 'up');
               }}>
                 <IcUp size={10} />
               </button>
               <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
                 e.stopPropagation(); 
-                checkpoint(); 
-                const arr = [...project.decos];
-                if (idx < arr.length - 1) [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-                update(p => ({ ...p, decos: arr }), false);
+                checkpoint();
+                reorderObject('deco', deco.id, 'down');
               }}>
                 <IcDown size={10} />
               </button>
@@ -937,7 +926,7 @@ function LayersList() {
         })}
 
         {/* Canvas Images */}
-        {project.canvasImages?.map((img: any) => {
+        {project.canvasImages?.map((img: any, idx) => {
           const on = selection?.kind === 'canvasimage' && selection.id === img.id;
           return (
             <div key={img.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'canvasimage', id: img.id })}
@@ -946,6 +935,20 @@ function LayersList() {
                 {img.visible ? <IcEye size={12} /> : <IcEyeOff size={12} />}
               </button>
               <span className="flex-1 text-[12px] truncate" style={{ opacity: img.visible ? 1 : 0.45 }}>{img.name}</span>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint();
+                reorderObject('canvasimage', img.id, 'up');
+              }}>
+                <IcUp size={10} />
+              </button>
+              <button className="icon-btn !w-5 !h-5" onClick={(e) => { 
+                e.stopPropagation(); 
+                checkpoint();
+                reorderObject('canvasimage', img.id, 'down');
+              }}>
+                <IcDown size={10} />
+              </button>
               <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, canvasImages: p.canvasImages.filter(x => x.id !== img.id) }), false); }}>
                 <IcTrash size={10} />
               </button>
