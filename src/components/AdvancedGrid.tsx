@@ -34,9 +34,9 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       return;
     }
 
-    const newGuides: DistanceGuide[] = [];
-    const interval = 20; // Show guides every 20px
-    const maxDistance = 200; // Only show guides within 200px
+    const allGuides: DistanceGuide[] = [];
+    const maxDistance = 300; // Maximum distance to show guides
+    const maxGuidesPerSide = 5; // Only show closest 5 guides per side
 
     // Calculate distances from canvas edges
     const leftDist = selectedObject.x;
@@ -44,10 +44,18 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
     const topDist = selectedObject.y;
     const bottomDist = canvasHeight - (selectedObject.y + selectedObject.height);
 
-    // Add edge distance guides
+    // Collect all possible guides with their distances
+    const leftGuides: DistanceGuide[] = [];
+    const rightGuides: DistanceGuide[] = [];
+    const topGuides: DistanceGuide[] = [];
+    const bottomGuides: DistanceGuide[] = [];
+
+    // Left edge guides
     if (leftDist > 0 && leftDist <= maxDistance) {
-      for (let d = interval; d <= leftDist; d += interval) {
-        newGuides.push({
+      const steps = Math.floor(leftDist / 20);
+      for (let i = 1; i <= steps; i++) {
+        const d = i * 20;
+        leftGuides.push({
           type: 'vertical',
           position: selectedObject.x - d,
           distance: d,
@@ -56,9 +64,12 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       }
     }
 
+    // Right edge guides
     if (rightDist > 0 && rightDist <= maxDistance) {
-      for (let d = interval; d <= rightDist; d += interval) {
-        newGuides.push({
+      const steps = Math.floor(rightDist / 20);
+      for (let i = 1; i <= steps; i++) {
+        const d = i * 20;
+        rightGuides.push({
           type: 'vertical',
           position: selectedObject.x + selectedObject.width + d,
           distance: d,
@@ -67,9 +78,12 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       }
     }
 
+    // Top edge guides
     if (topDist > 0 && topDist <= maxDistance) {
-      for (let d = interval; d <= topDist; d += interval) {
-        newGuides.push({
+      const steps = Math.floor(topDist / 20);
+      for (let i = 1; i <= steps; i++) {
+        const d = i * 20;
+        topGuides.push({
           type: 'horizontal',
           position: selectedObject.y - d,
           distance: d,
@@ -78,9 +92,12 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       }
     }
 
+    // Bottom edge guides
     if (bottomDist > 0 && bottomDist <= maxDistance) {
-      for (let d = interval; d <= bottomDist; d += interval) {
-        newGuides.push({
+      const steps = Math.floor(bottomDist / 20);
+      for (let i = 1; i <= steps; i++) {
+        const d = i * 20;
+        bottomGuides.push({
           type: 'horizontal',
           position: selectedObject.y + selectedObject.height + d,
           distance: d,
@@ -89,49 +106,55 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       }
     }
 
-    // Calculate distances from other objects
+    // Object-to-object guides
     otherObjects.forEach(obj => {
-      // Horizontal distances
       const hDist1 = Math.abs(selectedObject.x - (obj.x + obj.width));
       const hDist2 = Math.abs((selectedObject.x + selectedObject.width) - obj.x);
-      
-      if (hDist1 > 0 && hDist1 <= maxDistance) {
-        for (let d = interval; d <= hDist1; d += interval) {
-          const pos = selectedObject.x - d;
-          if (pos >= 0 && pos <= canvasWidth) {
-            newGuides.push({
-              type: 'vertical',
-              position: pos,
-              distance: d,
-              label: `${d}px`
-            });
-          }
-        }
-      }
-
-      if (hDist2 > 0 && hDist2 <= maxDistance) {
-        for (let d = interval; d <= hDist2; d += interval) {
-          const pos = selectedObject.x + selectedObject.width + d;
-          if (pos >= 0 && pos <= canvasWidth) {
-            newGuides.push({
-              type: 'vertical',
-              position: pos,
-              distance: d,
-              label: `${d}px`
-            });
-          }
-        }
-      }
-
-      // Vertical distances
       const vDist1 = Math.abs(selectedObject.y - (obj.y + obj.height));
       const vDist2 = Math.abs((selectedObject.y + selectedObject.height) - obj.y);
-      
+
+      // Left side object guides
+      if (hDist1 > 0 && hDist1 <= maxDistance) {
+        const steps = Math.floor(hDist1 / 20);
+        for (let i = 1; i <= steps; i++) {
+          const d = i * 20;
+          const pos = selectedObject.x - d;
+          if (pos >= 0 && pos <= canvasWidth) {
+            leftGuides.push({
+              type: 'vertical',
+              position: pos,
+              distance: d,
+              label: `${d}px`
+            });
+          }
+        }
+      }
+
+      // Right side object guides
+      if (hDist2 > 0 && hDist2 <= maxDistance) {
+        const steps = Math.floor(hDist2 / 20);
+        for (let i = 1; i <= steps; i++) {
+          const d = i * 20;
+          const pos = selectedObject.x + selectedObject.width + d;
+          if (pos >= 0 && pos <= canvasWidth) {
+            rightGuides.push({
+              type: 'vertical',
+              position: pos,
+              distance: d,
+              label: `${d}px`
+            });
+          }
+        }
+      }
+
+      // Top side object guides
       if (vDist1 > 0 && vDist1 <= maxDistance) {
-        for (let d = interval; d <= vDist1; d += interval) {
+        const steps = Math.floor(vDist1 / 20);
+        for (let i = 1; i <= steps; i++) {
+          const d = i * 20;
           const pos = selectedObject.y - d;
           if (pos >= 0 && pos <= canvasHeight) {
-            newGuides.push({
+            topGuides.push({
               type: 'horizontal',
               position: pos,
               distance: d,
@@ -141,11 +164,14 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
         }
       }
 
+      // Bottom side object guides
       if (vDist2 > 0 && vDist2 <= maxDistance) {
-        for (let d = interval; d <= vDist2; d += interval) {
+        const steps = Math.floor(vDist2 / 20);
+        for (let i = 1; i <= steps; i++) {
+          const d = i * 20;
           const pos = selectedObject.y + selectedObject.height + d;
           if (pos >= 0 && pos <= canvasHeight) {
-            newGuides.push({
+            bottomGuides.push({
               type: 'horizontal',
               position: pos,
               distance: d,
@@ -162,7 +188,7 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       const objCenterY = obj.y + obj.height / 2;
 
       if (Math.abs(selectedCenterX - objCenterX) < 5) {
-        newGuides.push({
+        allGuides.push({
           type: 'vertical',
           position: objCenterX,
           distance: 0,
@@ -171,7 +197,7 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       }
 
       if (Math.abs(selectedCenterY - objCenterY) < 5) {
-        newGuides.push({
+        allGuides.push({
           type: 'horizontal',
           position: objCenterY,
           distance: 0,
@@ -187,7 +213,7 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
     const selectedCenterY = selectedObject.y + selectedObject.height / 2;
 
     if (Math.abs(selectedCenterX - canvasCenterX) < 5) {
-      newGuides.push({
+      allGuides.push({
         type: 'vertical',
         position: canvasCenterX,
         distance: 0,
@@ -196,7 +222,7 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
     }
 
     if (Math.abs(selectedCenterY - canvasCenterY) < 5) {
-      newGuides.push({
+      allGuides.push({
         type: 'horizontal',
         position: canvasCenterY,
         distance: 0,
@@ -204,7 +230,19 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, 
       });
     }
 
-    setGuides(newGuides);
+    // Sort guides by distance and take only closest maxGuidesPerSide
+    leftGuides.sort((a, b) => a.distance - b.distance);
+    rightGuides.sort((a, b) => a.distance - b.distance);
+    topGuides.sort((a, b) => a.distance - b.distance);
+    bottomGuides.sort((a, b) => a.distance - b.distance);
+
+    // Add only closest guides
+    allGuides.push(...leftGuides.slice(0, maxGuidesPerSide));
+    allGuides.push(...rightGuides.slice(0, maxGuidesPerSide));
+    allGuides.push(...topGuides.slice(0, maxGuidesPerSide));
+    allGuides.push(...bottomGuides.slice(0, maxGuidesPerSide));
+
+    setGuides(allGuides);
   }, [selectedObject, otherObjects, canvasWidth, canvasHeight]);
 
   if (guides.length === 0) return null;
