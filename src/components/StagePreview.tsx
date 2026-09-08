@@ -17,7 +17,7 @@ export function bgStyle(b: Background): CSSProperties {
   return { background: `radial-gradient(70% 70% at 82% 16%, ${b.c2}77, transparent 70%), radial-gradient(65% 65% at 14% 88%, ${b.c3}6e, transparent 70%), ${b.c1}` };
 }
 
-function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
+function PaintCanvas({ p }: { p: Project }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -25,14 +25,9 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
     const ctx = c.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
-    if (depth === 'all') {
-      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents).then(() => {
-        drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
-      });
-    } else {
-      drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
-    }
-  }, [p.background, p.decos, p.accents, p.canvas.w, p.canvas.h, depth]);
+    // Sirf background render karo, decos nahi
+    renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents);
+  }, [p.background, p.accents, p.canvas.w, p.canvas.h]);
   return (
     <canvas
       ref={ref}
@@ -147,7 +142,7 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
           deco.glow ? `drop-shadow(0 0 12px ${deco.hue || '#ffffff'})` : '',
         ].filter(Boolean).join(' ') || undefined,
         pointerEvents: 'auto',
-        zIndex: deco.zIndex ?? 1,
+        // z-index remove kiya - unified layer system rendering order use karega
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -865,7 +860,7 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
         height: size,
         transform: `rotate(${icon.rotation}deg)`,
         opacity: icon.opacity,
-        zIndex: icon.zIndex ?? 500,
+        // z-index remove kiya - unified layer system rendering order use karega
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -1075,7 +1070,7 @@ function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { t
         boxShadow: textbox.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : textbox.glow ? `0 0 20px ${textbox.glowColor}` : undefined,
         filter: textbox.glow ? `drop-shadow(0 0 12px ${textbox.glowColor})` : undefined,
         pointerEvents: 'auto',
-        zIndex: selected ? 100 : 1,
+        // z-index remove kiya - unified layer system rendering order use karega
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -1227,7 +1222,7 @@ function CanvasImageLayer({ img, project, onDragStart, onDragEnd }: {
         height: img.height,
         transform: `rotate(${img.rotation}deg)`,
         opacity: img.opacity,
-        zIndex: img.zIndex,
+        // z-index remove kiya - unified layer system rendering order use karega
         cursor: img.locked ? 'not-allowed' : 'move',
         borderRadius: img.borderRadius,
         boxShadow: img.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : img.glow ? `0 0 20px ${img.glowColor}` : undefined,
@@ -1424,7 +1419,7 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
         transform: `rotate(${d.tilt}deg)`, 
         display: d.visible ? undefined : 'none', 
         opacity: d.opacity ?? 1,
-        zIndex: d.z ?? p.devices.indexOf(d)
+        // z-index remove kiya - unified layer system rendering order use karega
       }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDragOver={(e) => { e.preventDefault(); setDropHot(true); }}
@@ -1653,7 +1648,7 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
           }}
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
-            <PaintCanvas p={p} depth="all" />
+            <PaintCanvas p={p} />
             
             {/* Unified Layer System - All objects sorted by z-index */}
             {(() => {
@@ -1736,7 +1731,6 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
               });
             })()}
             
-            <PaintCanvas p={p} depth="front" />
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
             
