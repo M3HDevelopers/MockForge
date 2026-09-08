@@ -10,15 +10,50 @@ export type PosPreset =
   | 'center-left' | 'center' | 'center-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right';
 
+// Custom Text Box types
+export type TextBoxAlign = 'left' | 'center' | 'right';
+export type TextBoxBgType = 'none' | 'solid' | 'gradient' | 'glass';
+
+export interface TextBox {
+  id: string;
+  text: string;
+  x: number; // percentage 0-1
+  y: number; // percentage 0-1
+  width: number; // percentage 0-1
+  fontSize: number; // px
+  fontFamily: string;
+  fontWeight: number;
+  color: string;
+  align: TextBoxAlign;
+  bgType: TextBoxBgType;
+  bgColor: string;
+  bgGradient?: string;
+  padding: number; // px
+  borderRadius: number; // px
+  opacity: number; // 0-1
+  rotation: number; // degrees
+  shadow: boolean;
+  glow: boolean;
+  glowColor: string;
+}
+
 /* ================= new enums ================= */
 export type BgStyle = 'plain' | 'studio' | 'architectural' | 'abstract' | 'grid' | 'editorial' | 'tech' | 'glass';
 export type LightType = 'none' | 'top' | 'bottom' | 'left' | 'right' | 'center' | 'ambient';
 export type Material = 'matte' | 'glossy' | 'glass' | 'metallic';
-export type DecoCat = 'geometric' | '3d' | 'abstract' | 'ui';
+export type DecoCat = 'geometric' | '3d' | 'abstract' | 'ui' | 'frame' | 'depth' | 'structure' | 'texture' | 'motion' | 'tech' | 'luxury' | 'soft';
 export type DecoPrim =
   | 'sphere' | 'ring' | 'disc' | 'blob' | 'ribbon' | 'dotgrid' | 'wave' | 'plus' | 'sparkle'
   | 'glasscard' | 'uipanel' | 'notification' | 'chart' | 'arc' | 'pill' | 'cube' | 'torus'
-  | 'line' | 'square' | 'triangle' | 'orbit';
+  | 'line' | 'square' | 'triangle' | 'orbit'
+  | 'glassorb' | 'chromering' | 'softsphere' | 'roundedcube' | 'glasscube' | 'floatingpill'
+  | 'metallicdisc' | 'torus3d' | 'glasstorus' | 'pyramid' | 'isocube' | 'wireframecube'
+  | 'hexframe' | 'octframe' | 'diamondframe' | 'doublearc' | 'spiral' | 'orbitlines' | 'halo'
+  | 'fluidribbon' | 'foldedribbon' | 'liquidblob' | 'pebble' | 'cutout' | 'halfmoon' | 'quartercircle'
+  | 'layeredwave' | 'fluidline' | 'dottedorbit' | 'dotcluster' | 'microgrid' | 'perspectivegrid'
+  | 'cross' | 'pluscluster' | 'slab' | 'layeredcards' | 'glasspanel' | 'frostedshape'
+  | 'pillcluster' | 'floatingtriangles' | 'polygonstack' | 'isostair' | 'cylinder' | 'cone'
+  | 'capsulestack' | 'flowergeo' | 'radiallines' | 'cornerbrackets' | 'shadowblob';
 export type DecoDepth = 'back' | 'front';
 export type Mood =
   | 'auto' | 'minimal' | 'premium' | 'creative' | 'developer' | 'dark' | 'light'
@@ -60,6 +95,9 @@ export interface ImageBgState {
   mask: ImageMask;
 }
 
+export type IconMaterial = 'default' | 'glass' | 'glossy' | 'metallic' | 'ceramic' | 'holographic' | 'crystal';
+export type IconPlacementMode = 'free' | 'around-device' | 'behind-device' | 'orbit' | 'cluster' | 'tech-stack';
+
 export interface IconLayer {
   id: string;
   iconId: string;
@@ -73,6 +111,8 @@ export interface IconLayer {
   bgColor: string | null;
   shadow: boolean;
   glow: boolean;
+  material?: IconMaterial;
+  gradient?: { from: string; to: string };
 }
 
 /* ================= interfaces ================= */
@@ -206,11 +246,12 @@ export interface Project {
   decos: DecoLayer[];
   mood: Mood;
   icons: IconLayer[];
+  textboxes: TextBox[];
 }
 
 /* ================= editor state ================= */
 export interface Selection {
-  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon';
+  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon' | 'textbox';
   id?: string;
 }
 

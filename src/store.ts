@@ -150,6 +150,13 @@ interface StudioState {
   distributeDevices: (axis: 'h' | 'v') => void;
 
   removeIcon: (id: string) => void;
+  addIconsAroundDevice: (deviceId: string, iconIds: string[]) => void;
+  addTechStackIcons: (techStack: string[]) => void;
+  autoClusterIcons: () => void;
+
+  // Text box actions
+  addTextBox: () => void;
+  removeTextBox: (id: string) => void;
 
   randomize: () => void;
   setMood: (m: Mood) => void;
@@ -325,8 +332,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     saveTimer = setTimeout(() => get().save(true), 1400);
   },
 
-  addFiles: async (files) => {
-    const list = Array.from(files).filter(f => f.type.startsWith('image/'));
+  addFiles: async (files: FileList | File[]) => {
+    const list = Array.from(files).filter((f: File) => f.type.startsWith('image/'));
     if (!list.length) { get().toast('Only image files are supported', 'err'); return; }
     const cur = get().project;
     if (!cur) return;
@@ -445,6 +452,125 @@ export const useStudio = create<StudioState>((set, get) => ({
   removeIcon: (id) => {
     get().update(p => ({ ...p, icons: p.icons.filter(i => i.id !== id) }));
     set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  addTextBox: () => {
+    const id = uid();
+    get().update(p => ({
+      ...p,
+      textboxes: [...p.textboxes, {
+        id,
+        text: 'Your text here',
+        x: 0.5,
+        y: 0.5,
+        width: 0.3,
+        fontSize: 24,
+        fontFamily: 'Space Grotesk',
+        fontWeight: 600,
+        color: '#ffffff',
+        align: 'center',
+        bgType: 'none',
+        bgColor: '#000000',
+        padding: 12,
+        borderRadius: 8,
+        opacity: 1,
+        rotation: 0,
+        shadow: false,
+        glow: false,
+        glowColor: '#ff6b3d',
+      }],
+    }));
+    set({ selection: { kind: 'textbox', id } });
+  },
+
+  removeTextBox: (id) => {
+    get().update(p => ({ ...p, textboxes: p.textboxes.filter(t => t.id !== id) }));
+    set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  addIconsAroundDevice: (deviceId, iconIds) => {
+    const cur = get().project;
+    if (!cur) return;
+    const device = cur.devices.find(d => d.id === deviceId);
+    if (!device) return;
+    
+    get().checkpoint();
+    const cx = device.x + device.w / 2;
+    const cy = device.y + (device.w / DEVICE_META[device.kind].aspect) / 2;
+    const radius = Math.max(device.w, device.w / DEVICE_META[device.kind].aspect) * 0.7;
+    
+    const newIcons = iconIds.map((iconId, i) => {
+      const angle = (i / iconIds.length) * Math.PI * 2;
+      return {
+        id: uid(),
+        iconId,
+        x: (cx + Math.cos(angle) * radius) / cur.canvas.w,
+        y: (cy + Math.sin(angle) * radius) / cur.canvas.h,
+        size: 0.05,
+        color: '#ffffff',
+        opacity: 0.9,
+        rotation: 0,
+        bgStyle: 'circle' as const,
+        bgColor: cur.accents.a1,
+        shadow: true,
+        glow: false,
+      };
+    });
+    
+    get().update(p => ({ ...p, icons: [...p.icons, ...newIcons] }), false);
+    get().toast(`${iconIds.length} icons added around device`);
+  },
+
+  addTechStackIcons: (techStack) => {
+    const cur = get().project;
+    if (!cur || !cur.devices.length) return;
+    
+    // Map tech names to icon IDs
+    const techToIcon: Record<string, string> = {
+      'react': 'react',
+      'vue': 'vue',
+      'angular': 'angular',
+      'nextjs': 'nextjs',
+      'node': 'node',
+      'typescript': 'typescript',
+      'javascript': 'js',
+      'html': 'html',
+      'css': 'css',
+      'tailwind': 'tailwind',
+    };
+    
+    const iconIds = techStack
+      .map(tech => techToIcon[tech.toLowerCase()])
+      .filter(Boolean);
+    
+    if (iconIds.length > 0) {
+      get().addIconsAroundDevice(cur.devices[0].id, iconIds);
+    }
+  },
+
+  autoClusterIcons: () => {
+    const cur = get().project;
+    if (!cur || cur.icons.length < 2) return;
+    
+    get().checkpoint();
+    // Arrange icons in a grid pattern
+    const cols = Math.ceil(Math.sqrt(cur.icons.length));
+    const startX = 0.1;
+    const startY = 0.1;
+    const spacing = 0.08;
+    
+    const updatedIcons = cur.icons.map((icon, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      return {
+        ...icon,
+        x: startX + col * spacing,
+        y: startY + row * spacing,
+      };
+    });
+    
+    get().update(p => ({ ...p, icons: updatedIcons }), false);
+    get().toast('Icons clustered automatically');
   },
 
   duplicateDevice: (id) => {

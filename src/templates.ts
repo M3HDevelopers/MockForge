@@ -96,15 +96,72 @@ export function deviceGeometry(kind: DeviceKind, w: number, h: number, radiusMul
 /** Where the screenshot image lands inside the screen rect (fit + zoom + pan). */
 export function computeFit(s: ScreenRect, iw: number, ih: number, fit: FitMode, zoom: number, panX: number, panY: number) {
   let dw: number, dh: number;
-  if (fit === 'stretch') { dw = s.w; dh = s.h; }
-  else {
-    const sc = fit === 'cover' ? Math.max(s.w / iw, s.h / ih) : Math.min(s.w / iw, s.h / ih);
-    dw = iw * sc; dh = ih * sc;
+  
+  // Calculate aspect ratios
+  const screenAspect = s.w / s.h;
+  const imageAspect = iw / ih;
+  
+  if (fit === 'stretch') {
+    // Stretch to fill - may distort aspect ratio
+    dw = s.w;
+    dh = s.h;
+  } else if (fit === 'cover') {
+    // Cover: scale to fill entire screen, may crop
+    const scale = Math.max(s.w / iw, s.h / ih);
+    dw = iw * scale;
+    dh = ih * scale;
+  } else {
+    // Contain: scale to fit within screen, may have gaps
+    const scale = Math.min(s.w / iw, s.h / ih);
+    dw = iw * scale;
+    dh = ih * scale;
   }
-  dw *= zoom; dh *= zoom;
-  const cx = s.x + s.w / 2 + (panX * s.w) / 2;
-  const cy = s.y + s.h / 2 + (panY * s.h) / 2;
-  return { dx: cx - dw / 2, dy: cy - dh / 2, dw, dh };
+  
+  // Apply zoom (maintains aspect ratio) - CRITICAL FIX
+  // Zoom should scale from center, not from top-left
+  const baseW = dw;
+  const baseH = dh;
+  dw = baseW * zoom;
+  dh = baseH * zoom;
+  
+  // Calculate center position with pan offset
+  // Pan should be relative to screen size, not image size
+  const centerX = s.x + s.w / 2;
+  const centerY = s.y + s.h / 2;
+  const panOffsetX = panX * s.w * 0.5; // Max 50% of screen width
+  const panOffsetY = panY * s.h * 0.5; // Max 50% of screen height
+  
+  const cx = centerX + panOffsetX;
+  const cy = centerY + panOffsetY;
+  
+  // Position image centered at (cx, cy)
+  const dx = cx - dw / 2;
+  const dy = cy - dh / 2;
+  
+  return { dx, dy, dw, dh };
+}
+
+// Helper function to suggest best fit mode based on aspect ratios
+export function suggestFitMode(screenAspect: number, imageAspect: number): FitMode {
+  const ratio = screenAspect / imageAspect;
+  
+  // If aspect ratios are very close, use contain (no gaps, no cropping)
+  if (ratio > 0.9 && ratio < 1.1) {
+    return 'contain';
+  }
+  
+  // If screen is much wider than image, use cover to fill
+  if (ratio > 1.3) {
+    return 'cover';
+  }
+  
+  // If image is much wider than screen, use cover to fill
+  if (ratio < 0.77) {
+    return 'cover';
+  }
+  
+  // Default to cover for best visual result
+  return 'cover';
 }
 
 /* ---------------- canvas / aspect ---------------- */
@@ -232,29 +289,80 @@ export const DECO_SETS: { id: DecoSet; label: string }[] = [
 ];
 
 /* ---------------- decoration preset library (50+) ---------------- */
-export interface DecoPresetDef { id: string; label: string; cat: DecoCat; prim: DecoPrim }
-const dp = (id: string, label: string, cat: DecoCat, prim: DecoPrim): DecoPresetDef => ({ id, label, cat, prim });
+export interface DecoPresetDef { id: string; label: string; cat: DecoCat; prim: DecoPrim; role: string }
+const dp = (id: string, label: string, cat: DecoCat, prim: DecoPrim, role: string = 'abstract'): DecoPresetDef => ({ id, label, cat, prim, role });
 export const DECO_PRESETS: DecoPresetDef[] = [
-  // geometric
-  dp('circle', 'Circle', 'geometric', 'disc'), dp('ring', 'Ring', 'geometric', 'ring'),
-  dp('square', 'Square', 'geometric', 'square'), dp('triangle', 'Triangle', 'geometric', 'triangle'),
-  dp('line', 'Line', 'geometric', 'line'), dp('arc', 'Arc', 'geometric', 'arc'),
-  dp('dot', 'Dot field', 'geometric', 'dotgrid'), dp('plus', 'Plus', 'geometric', 'plus'),
-  dp('orbit', 'Orbit', 'geometric', 'orbit'),
-  // 3d
-  dp('sphere', 'Sphere', '3d', 'sphere'), dp('cube', 'Cube', '3d', 'cube'),
-  dp('torus', 'Torus', '3d', 'torus'), dp('pill', 'Pill', '3d', 'pill'),
-  dp('blob3d', 'Soft blob', '3d', 'blob'), dp('disc3d', 'Disc', '3d', 'disc'),
-  dp('ribbon', 'Ribbon', '3d', 'ribbon'),
-  // abstract
-  dp('wave', 'Wave', 'abstract', 'wave'), dp('glow-orb', 'Glow orb', 'abstract', 'sphere'),
-  dp('gradient-orb', 'Gradient orb', 'abstract', 'blob'), dp('sparkle', 'Sparkle', 'abstract', 'sparkle'),
-  dp('soft-shadow', 'Soft shadow', 'abstract', 'disc'),
-  // ui-inspired
-  dp('glass-card', 'Glass card', 'ui', 'glasscard'), dp('ui-panel', 'UI panel', 'ui', 'uipanel'),
-  dp('notification', 'Notification', 'ui', 'notification'), dp('chart-card', 'Chart card', 'ui', 'chart'),
-];
+  // Legacy geometric (kept for backward compat)
+  dp('circle', 'Circle', 'geometric', 'disc', 'depth'),
+  dp('ring', 'Ring', 'geometric', 'ring', 'frame'),
+  dp('square', 'Square', 'geometric', 'square', 'structure'),
+  dp('triangle', 'Triangle', 'geometric', 'triangle', 'structure'),
+  dp('line', 'Line', 'geometric', 'line', 'motion'),
+  dp('arc', 'Arc', 'geometric', 'arc', 'frame'),
+  dp('dot', 'Dot field', 'geometric', 'dotgrid', 'texture'),
+  dp('plus', 'Plus', 'geometric', 'plus', 'tech'),
+  dp('orbit', 'Orbit', 'geometric', 'orbit', 'frame'),
 
+  // 3D & Premium (1-10)
+  dp('glass-orb', 'Glass Orb', 'depth', 'glassorb', 'depth'),
+  dp('chrome-ring', 'Chrome Ring', 'luxury', 'chromering', 'luxury'),
+  dp('soft-sphere', 'Soft 3D Sphere', 'depth', 'softsphere', 'depth'),
+  dp('rounded-cube', 'Rounded Cube', 'depth', 'roundedcube', 'depth'),
+  dp('glass-cube', 'Glass Cube', 'depth', 'glasscube', 'depth'),
+  dp('floating-pill', 'Floating Pill', 'motion', 'floatingpill', 'motion'),
+  dp('metallic-disc', 'Metallic Disc', 'luxury', 'metallicdisc', 'luxury'),
+  dp('torus-3d', '3D Torus', 'depth', 'torus3d', 'depth'),
+  dp('glass-torus', 'Glass Torus', 'luxury', 'glasstorus', 'luxury'),
+  dp('pyramid', 'Pyramid', 'structure', 'pyramid', 'structure'),
+
+  // Geometric Frames (11-20)
+  dp('iso-cube', 'Isometric Cube', 'structure', 'isocube', 'structure'),
+  dp('wireframe-cube', 'Wireframe Cube', 'tech', 'wireframecube', 'tech'),
+  dp('hex-frame', 'Hexagonal Frame', 'tech', 'hexframe', 'tech'),
+  dp('oct-frame', 'Octagonal Frame', 'tech', 'octframe', 'tech'),
+  dp('diamond-frame', 'Diamond Frame', 'frame', 'diamondframe', 'frame'),
+  dp('abstract-arc', 'Abstract Arc', 'frame', 'arc', 'frame'),
+  dp('double-arc', 'Double Arc', 'frame', 'doublearc', 'frame'),
+  dp('spiral', 'Spiral Form', 'motion', 'spiral', 'motion'),
+  dp('orbit-lines', 'Orbit Lines', 'frame', 'orbitlines', 'frame'),
+  dp('halo', 'Halo Ring', 'frame', 'halo', 'frame'),
+
+  // Ribbons & Fluid (21-30)
+  dp('fluid-ribbon', 'Fluid Ribbon', 'motion', 'fluidribbon', 'motion'),
+  dp('folded-ribbon', 'Folded Ribbon', 'motion', 'foldedribbon', 'motion'),
+  dp('liquid-blob', 'Liquid Blob', 'soft', 'liquidblob', 'soft'),
+  dp('pebble', 'Organic Pebble', 'soft', 'pebble', 'soft'),
+  dp('cutout-circle', 'Cutout Circle', 'frame', 'cutout', 'frame'),
+  dp('half-moon', 'Half Moon', 'soft', 'halfmoon', 'soft'),
+  dp('quarter-circle', 'Quarter Circle', 'frame', 'quartercircle', 'frame'),
+  dp('layered-wave', 'Layered Wave', 'motion', 'layeredwave', 'motion'),
+  dp('fluid-line', 'Fluid Line', 'motion', 'fluidline', 'motion'),
+  dp('dotted-orbit', 'Dotted Orbit', 'texture', 'dottedorbit', 'texture'),
+
+  // Texture & Grid (31-40)
+  dp('dot-cluster', 'Dot Cluster', 'texture', 'dotcluster', 'texture'),
+  dp('micro-grid', 'Micro Grid', 'texture', 'microgrid', 'texture'),
+  dp('perspective-grid', 'Perspective Grid', 'texture', 'perspectivegrid', 'texture'),
+  dp('geo-cross', 'Geometric Cross', 'structure', 'cross', 'structure'),
+  dp('plus-cluster', 'Plus Cluster', 'tech', 'pluscluster', 'tech'),
+  dp('floating-slab', 'Floating Slab', 'structure', 'slab', 'structure'),
+  dp('layered-cards', 'Layered Cards', 'ui', 'layeredcards', 'structure'),
+  dp('glass-panel', 'Glass Panel', 'ui', 'glasspanel', 'depth'),
+  dp('frosted-shape', 'Frosted Shape', 'ui', 'frostedshape', 'depth'),
+  dp('pill-cluster', 'Metallic Pill Cluster', 'luxury', 'pillcluster', 'luxury'),
+
+  // Advanced (41-50)
+  dp('floating-triangles', 'Floating Triangles', 'structure', 'floatingtriangles', 'structure'),
+  dp('polygon-stack', 'Polygon Stack', 'structure', 'polygonstack', 'structure'),
+  dp('iso-stair', 'Isometric Stair', 'structure', 'isostair', 'structure'),
+  dp('cylinder-3d', '3D Cylinder', 'depth', 'cylinder', 'depth'),
+  dp('cone-3d', '3D Cone', 'depth', 'cone', 'depth'),
+  dp('capsule-stack', 'Capsule Stack', 'motion', 'capsulestack', 'motion'),
+  dp('flower-geo', 'Abstract Flower', 'frame', 'flowergeo', 'frame'),
+  dp('radial-lines', 'Radial Lines', 'tech', 'radiallines', 'tech'),
+  dp('corner-brackets', 'Corner Brackets', 'frame', 'cornerbrackets', 'frame'),
+  dp('shadow-blob', 'Soft Shadow Blob', 'soft', 'shadowblob', 'soft'),
+];
 /* legacy decoration generator (kept for old projects) */
 export function getDecoShapes(set: DecoSet, seed: number, w: number, h: number, intensity: number, c1: string, c2: string): DecoShape[] {
   if (set === 'none') return [];
@@ -371,6 +479,7 @@ export function makeDefaultProject(name: string, type: string, cw: number, ch: n
     decos: [],
     mood: 'auto',
     icons: [],
+    textboxes: [],
   };
 }
 
@@ -393,6 +502,7 @@ export function migrate(p: any): Project {
     text: { ...base.text, ...(p.text || {}) },
     logo: { ...base.logo, ...(p.logo || {}) },
     icons: p.icons || [],
+    textboxes: p.textboxes || [],
   };
 }
 

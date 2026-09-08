@@ -53,6 +53,8 @@ export function Editor() {
       const el = e.target as HTMLElement;
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return;
       const mod = e.ctrlKey || e.metaKey;
+      
+      // Basic shortcuts
       if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
       else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); void saveNow(false); }
@@ -70,6 +72,141 @@ export function Editor() {
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
         checkpoint();
         update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, x: d.x + dx, y: d.y + dy } : d) }), false);
+      }
+      // Advanced shortcuts
+      else if (mod && e.key.toLowerCase() === 'g') { e.preventDefault(); setGenOpen(true); } // Open Design Engine
+      else if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); setExportOpen(true); } // Open Export
+      else if (mod && e.shiftKey && e.key.toLowerCase() === 'r') { e.preventDefault(); randomize(); } // Surprise me
+      else if (mod && e.key === '[') { e.preventDefault(); setZoom(zoom * 0.9); } // Zoom out
+      else if (mod && e.key === ']') { e.preventDefault(); setZoom(zoom * 1.1); } // Zoom in
+      else if (mod && e.key === '0') { e.preventDefault(); fitZoom(); } // Fit to screen
+      else if (mod && e.key === '=') { e.preventDefault(); setZoom(zoom * 1.1); } // Zoom in (alternative)
+      else if (mod && e.key === '-') { e.preventDefault(); setZoom(zoom * 0.9); } // Zoom out (alternative)
+      else if (mod && e.shiftKey && e.key === '0') { e.preventDefault(); setZoom(1); } // Reset zoom to 100%
+      else if (e.key === 'Tab' && selection?.kind === 'device') {
+        e.preventDefault();
+        // Cycle through devices
+        const currentIndex = project.devices.findIndex(d => d.id === selection.id);
+        const nextIndex = (currentIndex + 1) % project.devices.length;
+        setSelection({ kind: 'device', id: project.devices[nextIndex].id });
+      }
+      else if (e.key === 'Tab' && e.shiftKey && selection?.kind === 'device') {
+        e.preventDefault();
+        // Cycle backwards through devices
+        const currentIndex = project.devices.findIndex(d => d.id === selection.id);
+        const prevIndex = currentIndex <= 0 ? project.devices.length - 1 : currentIndex - 1;
+        setSelection({ kind: 'device', id: project.devices[prevIndex].id });
+      }
+      else if (mod && e.key === 'ArrowLeft' && selection?.kind === 'device') {
+        e.preventDefault();
+        // Nudge device left
+        const step = e.shiftKey ? 20 : 4;
+        checkpoint();
+        update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, x: d.x - step } : d) }), false);
+      }
+      else if (mod && e.key === 'ArrowRight' && selection?.kind === 'device') {
+        e.preventDefault();
+        // Nudge device right
+        const step = e.shiftKey ? 20 : 4;
+        checkpoint();
+        update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, x: d.x + step } : d) }), false);
+      }
+      else if (mod && e.key === 'ArrowUp' && selection?.kind === 'device') {
+        e.preventDefault();
+        // Nudge device up
+        const step = e.shiftKey ? 20 : 4;
+        checkpoint();
+        update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, y: d.y - step } : d) }), false);
+      }
+      else if (mod && e.key === 'ArrowDown' && selection?.kind === 'device') {
+        e.preventDefault();
+        // Nudge device down
+        const step = e.shiftKey ? 20 : 4;
+        checkpoint();
+        update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, y: d.y + step } : d) }), false);
+      }
+      else if (mod && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        // Select all devices
+        if (project.devices.length > 0) {
+          setSelection({ kind: 'device', id: project.devices[0].id });
+        }
+      }
+      else if (mod && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        // Deselect all
+        setSelection(null);
+      }
+      else if (mod && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        // Fit selected device to screen
+        if (selection?.kind === 'device' && selection.id) {
+          const device = project.devices.find(d => d.id === selection.id);
+          if (device) {
+            const newZoom = Math.min(
+              (project.canvas.w * 0.8) / device.w,
+              (project.canvas.h * 0.8) / (device.w / 1.5)
+            );
+            setZoom(newZoom);
+          }
+        }
+      }
+      else if (mod && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        // Hide/show selected device
+        if (selection?.kind === 'device' && selection.id) {
+          checkpoint();
+          update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, visible: !d.visible } : d) }), false);
+        }
+      }
+      else if (mod && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        // Lock/unlock selected device (toggle opacity as visual indicator)
+        if (selection?.kind === 'device' && selection.id) {
+          checkpoint();
+          update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, opacity: d.opacity === 0.5 ? 1 : 0.5 } : d) }), false);
+        }
+      }
+      else if (mod && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        // Duplicate and offset
+        if (selection?.kind === 'device' && selection.id) {
+          const device = project.devices.find(d => d.id === selection.id);
+          if (device) {
+            checkpoint();
+            const newDevice = { ...device, id: Math.random().toString(36).substr(2, 9), x: device.x + 20, y: device.y + 20 };
+            update(p => ({ ...p, devices: [...p.devices, newDevice] }), false);
+            setSelection({ kind: 'device', id: newDevice.id });
+          }
+        }
+      }
+      else if (mod && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        // Send to back
+        if (selection?.kind === 'device' && selection.id) {
+          checkpoint();
+          update(p => ({
+            ...p,
+            devices: [
+              ...p.devices.filter(d => d.id !== selection.id),
+              ...p.devices.filter(d => d.id === selection.id)
+            ]
+          }), false);
+        }
+      }
+      else if (mod && e.shiftKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        // Bring to front
+        if (selection?.kind === 'device' && selection.id) {
+          checkpoint();
+          update(p => ({
+            ...p,
+            devices: [
+              ...p.devices.filter(d => d.id === selection.id),
+              ...p.devices.filter(d => d.id !== selection.id)
+            ]
+          }), false);
+        }
       }
     };
     window.addEventListener('keydown', onKey);

@@ -88,7 +88,13 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
         height: size,
         transform: `rotate(${deco.rotation}deg)`,
         opacity: deco.opacity,
-        filter: deco.blur > 0 ? `blur(${deco.blur}px)` : undefined,
+        filter: [
+          deco.blur > 0 ? `blur(${deco.blur}px)` : '',
+          deco.shadow ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' : '',
+          deco.glow ? `drop-shadow(0 0 12px ${deco.hue || '#ffffff'})` : '',
+        ].filter(Boolean).join(' ') || undefined,
+        pointerEvents: 'auto',
+        zIndex: selected ? 100 : 1,
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -105,9 +111,18 @@ function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
   if (!preset) return null;
   
   const color = deco.hue || '#ff6b3d';
+  const gradId = `grad-${deco.id}`;
   
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" className="w-full h-full">
+      <defs>
+        <radialGradient id={gradId} cx="30%" cy="30%">
+          <stop offset="0%" stopColor="white" stopOpacity="0.6" />
+          <stop offset="100%" stopColor={color} stopOpacity="1" />
+        </radialGradient>
+      </defs>
+      
+      {/* Legacy shapes */}
       {preset.prim === 'disc' && <circle cx="50" cy="50" r="45" fill={color} />}
       {preset.prim === 'ring' && <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="8" />}
       {preset.prim === 'square' && <rect x="10" y="10" width="80" height="80" fill={color} />}
@@ -127,6 +142,293 @@ function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
           <line x1="10" y1="50" x2="90" y2="50" />
         </g>
       )}
+      
+      {/* 3D & Premium */}
+      {preset.prim === 'glassorb' && (
+        <>
+          <circle cx="50" cy="50" r="40" fill={`url(#${gradId})`} opacity="0.7" />
+          <circle cx="35" cy="35" r="12" fill="white" opacity="0.6" />
+        </>
+      )}
+      {preset.prim === 'chromering' && (
+        <>
+          <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="12" />
+          <circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="3" opacity="0.5" />
+        </>
+      )}
+      {preset.prim === 'softsphere' && (
+        <circle cx="50" cy="50" r="45" fill={`url(#${gradId})`} />
+      )}
+      {preset.prim === 'roundedcube' && (
+        <rect x="15" y="15" width="70" height="70" rx="10" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'glasscube' && (
+        <>
+          <rect x="15" y="15" width="70" height="70" rx="5" fill={`url(#${gradId})`} opacity="0.6" />
+          <rect x="20" y="20" width="20" height="20" fill="white" opacity="0.4" />
+        </>
+      )}
+      {preset.prim === 'floatingpill' && (
+        <rect x="20" y="35" width="60" height="30" rx="15" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'metallicdisc' && (
+        <>
+          <ellipse cx="50" cy="50" rx="45" ry="20" fill={color} />
+          <ellipse cx="50" cy="45" rx="40" ry="15" fill="white" opacity="0.3" />
+        </>
+      )}
+      {preset.prim === 'torus3d' && (
+        <>
+          <circle cx="50" cy="50" r="35" fill="none" stroke={color} strokeWidth="15" />
+          <circle cx="50" cy="50" r="35" fill="none" stroke="white" strokeWidth="3" opacity="0.4" />
+        </>
+      )}
+      {preset.prim === 'glasstorus' && (
+        <>
+          <circle cx="50" cy="50" r="35" fill="none" stroke={`url(#${gradId})`} strokeWidth="15" opacity="0.7" />
+        </>
+      )}
+      {preset.prim === 'pyramid' && (
+        <polygon points="50,10 90,90 10,90" fill={color} opacity="0.8" />
+      )}
+      
+      {/* Geometric Frames */}
+      {preset.prim === 'isocube' && (
+        <g fill={color} opacity="0.8">
+          <polygon points="50,10 90,30 90,70 50,90" />
+          <polygon points="50,10 10,30 10,70 50,90" opacity="0.6" />
+          <polygon points="50,10 90,30 50,50 10,30" opacity="0.4" />
+        </g>
+      )}
+      {preset.prim === 'wireframecube' && (
+        <g stroke={color} strokeWidth="2" fill="none">
+          <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" />
+          <line x1="50" y1="10" x2="50" y2="50" />
+          <line x1="90" y1="30" x2="50" y2="50" />
+          <line x1="10" y1="30" x2="50" y2="50" />
+        </g>
+      )}
+      {preset.prim === 'hexframe' && (
+        <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="none" stroke={color} strokeWidth="8" />
+      )}
+      {preset.prim === 'octframe' && (
+        <polygon points="35,10 65,10 90,35 90,65 65,90 35,90 10,65 10,35" fill="none" stroke={color} strokeWidth="8" />
+      )}
+      {preset.prim === 'diamondframe' && (
+        <polygon points="50,10 90,50 50,90 10,50" fill="none" stroke={color} strokeWidth="8" />
+      )}
+      {preset.prim === 'doublearc' && (
+        <>
+          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke={color} strokeWidth="6" />
+          <path d="M 15 55 A 35 35 0 0 1 85 55" fill="none" stroke={color} strokeWidth="6" opacity="0.6" />
+        </>
+      )}
+      {preset.prim === 'spiral' && (
+        <path d="M 50 50 Q 70 30 70 50 Q 70 70 50 70 Q 30 70 30 50 Q 30 30 50 30 Q 60 30 60 50" fill="none" stroke={color} strokeWidth="6" />
+      )}
+      {preset.prim === 'orbitlines' && (
+        <g stroke={color} strokeWidth="3" fill="none" opacity="0.7">
+          <ellipse cx="50" cy="50" rx="40" ry="20" transform="rotate(0 50 50)" />
+          <ellipse cx="50" cy="50" rx="40" ry="20" transform="rotate(60 50 50)" />
+          <ellipse cx="50" cy="50" rx="40" ry="20" transform="rotate(120 50 50)" />
+        </g>
+      )}
+      {preset.prim === 'halo' && (
+        <>
+          <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="8" opacity="0.3" />
+          <circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="3" opacity="0.5" />
+        </>
+      )}
+      
+      {/* Ribbons & Fluid */}
+      {preset.prim === 'fluidribbon' && (
+        <path d="M 20 30 Q 50 10 80 30 Q 90 50 80 70 Q 50 90 20 70 Q 10 50 20 30" fill={color} opacity="0.7" />
+      )}
+      {preset.prim === 'foldedribbon' && (
+        <path d="M 10 30 L 40 20 L 40 50 L 70 40 L 70 70 L 90 60 L 90 90 L 10 80 Z" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'liquidblob' && (
+        <path d="M 50 10 Q 85 20 85 50 Q 85 85 50 85 Q 15 85 15 50 Q 15 20 50 10 Z" fill={color} opacity="0.7" />
+      )}
+      {preset.prim === 'pebble' && (
+        <ellipse cx="50" cy="50" rx="40" ry="35" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'cutout' && (
+        <>
+          <circle cx="50" cy="50" r="45" fill={color} />
+          <circle cx="50" cy="50" r="25" fill="white" />
+        </>
+      )}
+      {preset.prim === 'halfmoon' && (
+        <path d="M 50 10 A 40 40 0 0 1 50 90 Z" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'quartercircle' && (
+        <path d="M 10 10 L 90 10 L 90 90 A 80 80 0 0 1 10 10 Z" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'layeredwave' && (
+        <g fill={color} opacity="0.6">
+          <path d="M 0 60 Q 25 40 50 60 T 100 60 L 100 100 L 0 100 Z" />
+          <path d="M 0 70 Q 25 50 50 70 T 100 70 L 100 100 L 0 100 Z" opacity="0.8" />
+          <path d="M 0 80 Q 25 60 50 80 T 100 80 L 100 100 L 0 100 Z" opacity="0.6" />
+        </g>
+      )}
+      {preset.prim === 'fluidline' && (
+        <path d="M 10 50 Q 30 20 50 50 T 90 50" fill="none" stroke={color} strokeWidth="6" />
+      )}
+      {preset.prim === 'dottedorbit' && (
+        <g fill={color}>
+          {[0,1,2,3,4,5,6,7].map(i => {
+            const angle = (i / 8) * Math.PI * 2;
+            const x = 50 + Math.cos(angle) * 35;
+            const y = 50 + Math.sin(angle) * 35;
+            return <circle key={i} cx={x} cy={y} r="4" />;
+          })}
+        </g>
+      )}
+      
+      {/* Texture & Grid */}
+      {preset.prim === 'dotcluster' && (
+        <g fill={color}>
+          {[0,1,2,3,4].map(i => [0,1,2,3,4].map(j => {
+            const dist = Math.sqrt(Math.pow(i-2, 2) + Math.pow(j-2, 2));
+            if (dist < 2.5) return <circle key={`${i}-${j}`} cx={20 + i * 15} cy={20 + j * 15} r={4 - dist} />;
+            return null;
+          }))}
+        </g>
+      )}
+      {preset.prim === 'microgrid' && (
+        <g stroke={color} strokeWidth="1" opacity="0.5">
+          {[0,1,2,3,4,5,6,7].map(i => (
+            <g key={i}>
+              <line x1={10 + i * 10} y1="10" x2={10 + i * 10} y2="90" />
+              <line x1="10" y1={10 + i * 10} x2="90" y2={10 + i * 10} />
+            </g>
+          ))}
+        </g>
+      )}
+      {preset.prim === 'perspectivegrid' && (
+        <g stroke={color} strokeWidth="1" opacity="0.4">
+          <line x1="50" y1="10" x2="10" y2="90" />
+          <line x1="50" y1="10" x2="90" y2="90" />
+          <line x1="50" y1="10" x2="30" y2="90" />
+          <line x1="50" y1="10" x2="70" y2="90" />
+          {[0,1,2,3].map(i => <line key={i} x1="10" y1={30 + i * 15} x2="90" y2={30 + i * 15} />)}
+        </g>
+      )}
+      {preset.prim === 'cross' && (
+        <g fill={color}>
+          <rect x="40" y="10" width="20" height="80" rx="5" />
+          <rect x="10" y="40" width="80" height="20" rx="5" />
+        </g>
+      )}
+      {preset.prim === 'pluscluster' && (
+        <g stroke={color} strokeWidth="4" strokeLinecap="round">
+          <line x1="30" y1="20" x2="30" y2="40" />
+          <line x1="20" y1="30" x2="40" y2="30" />
+          <line x1="70" y1="60" x2="70" y2="80" />
+          <line x1="60" y1="70" x2="80" y2="70" />
+        </g>
+      )}
+      {preset.prim === 'slab' && (
+        <rect x="10" y="40" width="80" height="20" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'layeredcards' && (
+        <g>
+          <rect x="10" y="50" width="60" height="40" rx="5" fill={color} opacity="0.4" />
+          <rect x="20" y="40" width="60" height="40" rx="5" fill={color} opacity="0.6" />
+          <rect x="30" y="30" width="60" height="40" rx="5" fill={color} opacity="0.8" />
+        </g>
+      )}
+      {preset.prim === 'glasspanel' && (
+        <rect x="30" y="10" width="40" height="80" rx="5" fill={`url(#${gradId})`} opacity="0.5" />
+      )}
+      {preset.prim === 'frostedshape' && (
+        <rect x="15" y="15" width="70" height="70" rx="20" fill={`url(#${gradId})`} opacity="0.4" />
+      )}
+      {preset.prim === 'pillcluster' && (
+        <g fill={color} opacity="0.8">
+          <rect x="20" y="30" width="25" height="15" rx="7.5" transform="rotate(-20 32 37)" />
+          <rect x="50" y="50" width="25" height="15" rx="7.5" transform="rotate(15 62 57)" />
+          <rect x="35" y="65" width="25" height="15" rx="7.5" transform="rotate(-10 47 72)" />
+        </g>
+      )}
+      
+      {/* Advanced */}
+      {preset.prim === 'floatingtriangles' && (
+        <g fill={color} opacity="0.7">
+          <polygon points="30,20 50,50 10,50" />
+          <polygon points="70,40 90,70 50,70" opacity="0.8" />
+          <polygon points="40,60 60,90 20,90" opacity="0.6" />
+        </g>
+      )}
+      {preset.prim === 'polygonstack' && (
+        <g fill={color}>
+          <polygon points="20,70 80,70 70,80 30,80" opacity="0.4" />
+          <polygon points="25,60 75,60 65,70 35,70" opacity="0.6" />
+          <polygon points="30,50 70,50 60,60 40,60" opacity="0.8" />
+        </g>
+      )}
+      {preset.prim === 'isostair' && (
+        <g fill={color} opacity="0.8">
+          <rect x="20" y="70" width="20" height="10" />
+          <rect x="40" y="60" width="20" height="20" />
+          <rect x="60" y="50" width="20" height="30" />
+        </g>
+      )}
+      {preset.prim === 'cylinder' && (
+        <>
+          <ellipse cx="50" cy="30" rx="30" ry="10" fill={color} opacity="0.6" />
+          <rect x="20" y="30" width="60" height="40" fill={color} opacity="0.8" />
+          <ellipse cx="50" cy="70" rx="30" ry="10" fill={color} />
+        </>
+      )}
+      {preset.prim === 'cone' && (
+        <polygon points="50,10 80,90 20,90" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'capsulestack' && (
+        <g fill={color} opacity="0.8">
+          <rect x="20" y="25" width="30" height="15" rx="7.5" />
+          <rect x="50" y="45" width="30" height="15" rx="7.5" />
+          <rect x="35" y="65" width="30" height="15" rx="7.5" />
+        </g>
+      )}
+      {preset.prim === 'flowergeo' && (
+        <g fill={color} opacity="0.7">
+          <circle cx="50" cy="30" r="15" />
+          <circle cx="70" cy="50" r="15" />
+          <circle cx="50" cy="70" r="15" />
+          <circle cx="30" cy="50" r="15" />
+          <circle cx="50" cy="50" r="10" fill="white" opacity="0.5" />
+        </g>
+      )}
+      {preset.prim === 'radiallines' && (
+        <g stroke={color} strokeWidth="2">
+          {[0,1,2,3,4,5,6,7].map(i => {
+            const angle = (i / 8) * Math.PI * 2;
+            const x1 = 50 + Math.cos(angle) * 20;
+            const y1 = 50 + Math.sin(angle) * 20;
+            const x2 = 50 + Math.cos(angle) * 40;
+            const y2 = 50 + Math.sin(angle) * 40;
+            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />;
+          })}
+        </g>
+      )}
+      {preset.prim === 'cornerbrackets' && (
+        <g stroke={color} strokeWidth="4" fill="none">
+          <path d="M 10 30 L 10 10 L 30 10" />
+          <path d="M 70 10 L 90 10 L 90 30" />
+          <path d="M 90 70 L 90 90 L 70 90" />
+          <path d="M 30 90 L 10 90 L 10 70" />
+        </g>
+      )}
+      {preset.prim === 'shadowblob' && (
+        <>
+          <ellipse cx="50" cy="75" rx="35" ry="10" fill="black" opacity="0.2" />
+          <path d="M 50 10 Q 80 20 80 50 Q 80 75 50 75 Q 20 75 20 50 Q 20 20 50 10 Z" fill={color} opacity="0.7" />
+        </>
+      )}
+      
+      {/* Fallback for sphere, cube, blob */}
       {preset.prim === 'sphere' && (
         <>
           <circle cx="50" cy="50" r="45" fill={color} opacity="0.3" />
@@ -139,6 +441,9 @@ function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
       {preset.prim === 'blob' && (
         <path d="M 50 10 Q 80 20 85 50 Q 80 80 50 90 Q 20 80 15 50 Q 20 20 50 10 Z" fill={color} opacity="0.7" />
       )}
+      {preset.prim === 'sparkle' && (
+        <path d="M 50 10 L 55 45 L 90 50 L 55 55 L 50 90 L 45 55 L 10 50 L 45 45 Z" fill={color} />
+      )}
     </svg>
   );
 }
@@ -149,12 +454,41 @@ function ScreenImage({ d, dataUrl, iw, ih }: { d: DeviceLayer; dataUrl: string; 
   const f = computeFit(g, iw, ih, d.fit, d.zoom, d.panX, d.panY);
   const filter = Math.abs((d.brightness ?? 1) - 1) > 0.02
     ? `brightness(${d.brightness})` : undefined;
+  
+  // CRITICAL FIX: Ensure image maintains aspect ratio and doesn't overflow
+  const imgStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: f.dx - g.x,
+    top: f.dy - g.y,
+    width: f.dw,
+    height: f.dh,
+    pointerEvents: 'none',
+    filter,
+    opacity: d.opacity ?? 1,
+    objectFit: d.fit === 'stretch' ? 'fill' : d.fit === 'cover' ? 'cover' : 'contain',
+    maxWidth: 'none',
+    maxHeight: 'none',
+  };
+  
   return (
-    <div className="absolute overflow-hidden" style={{ left: g.x, top: g.y, width: g.w, height: g.h, borderRadius: g.r }}>
+    <div 
+      className="absolute overflow-hidden" 
+      style={{ 
+        left: g.x, 
+        top: g.y, 
+        width: g.w, 
+        height: g.h, 
+        borderRadius: g.r,
+        // Ensure clipping works properly
+        clipPath: `inset(0 round ${g.r}px)`,
+      }}
+    >
       <img
-        src={dataUrl} alt="" draggable={false}
+        src={dataUrl} 
+        alt="" 
+        draggable={false}
         className="absolute select-none"
-        style={{ left: f.dx - g.x, top: f.dy - g.y, width: f.dw, height: f.dh, pointerEvents: 'none', filter, opacity: d.opacity ?? 1 }}
+        style={imgStyle}
       />
     </div>
   );
@@ -439,6 +773,93 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
   );
 }
 
+function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: number; canvasH: number }) {
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'textbox' && s.selection.id === textbox.id);
+  
+  const x = textbox.x * canvasW;
+  const y = textbox.y * canvasH;
+  const width = textbox.width * canvasW;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'textbox', id: textbox.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: textbox.x, oy: textbox.y };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      textboxes: p.textboxes.map(t => t.id === textbox.id ? { ...t, x: drag.ox + dx, y: drag.oy + dy } : t)
+    }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  // Background style
+  let bgStyle: React.CSSProperties = {};
+  if (textbox.bgType === 'solid') {
+    bgStyle.background = textbox.bgColor;
+  } else if (textbox.bgType === 'gradient') {
+    bgStyle.background = textbox.bgGradient || `linear-gradient(135deg, ${textbox.bgColor}88, ${textbox.bgColor})`;
+  } else if (textbox.bgType === 'glass') {
+    bgStyle.background = `${textbox.bgColor}33`;
+    bgStyle.backdropFilter = 'blur(8px)';
+    bgStyle.border = `1px solid ${textbox.bgColor}66`;
+  }
+  
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: width,
+        transform: `rotate(${textbox.rotation}deg)`,
+        opacity: textbox.opacity,
+        ...bgStyle,
+        padding: textbox.padding,
+        borderRadius: textbox.borderRadius,
+        boxShadow: textbox.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : textbox.glow ? `0 0 20px ${textbox.glowColor}` : undefined,
+        filter: textbox.glow ? `drop-shadow(0 0 12px ${textbox.glowColor})` : undefined,
+        pointerEvents: 'auto',
+        zIndex: selected ? 100 : 1,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <div
+        style={{
+          fontFamily: textbox.fontFamily,
+          fontSize: textbox.fontSize,
+          fontWeight: textbox.fontWeight,
+          color: textbox.color,
+          textAlign: textbox.align,
+          lineHeight: 1.4,
+          wordWrap: 'break-word',
+        }}
+      >
+        {textbox.text}
+      </div>
+    </div>
+  );
+}
+
 function DeviceNode({ d, guides, setGuides }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
@@ -572,6 +993,9 @@ export function StagePreview() {
             ))}
             {p.icons.map(icon => (
               <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
+            {p.textboxes.map(textbox => (
+              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} />
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />

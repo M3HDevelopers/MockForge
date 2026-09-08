@@ -14,7 +14,28 @@ export interface IconDef {
 }
 
 export const ICONS: IconDef[] = [
-  // Web Development
+  // Premium 3D-Style Icons (50 new additions)
+  { id: 'glass-orb', name: 'Glass Orb', category: 'premium', tags: ['glass', 'orb', '3d', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 6a3 3 0 1 1 0 6 3 3 0 0 1 0-6z', style: 'filled' },
+  { id: 'chrome-ring', name: 'Chrome Ring', category: 'premium', tags: ['chrome', 'ring', 'metallic', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12z', style: 'filled' },
+  { id: 'soft-sphere', name: 'Soft Sphere', category: 'premium', tags: ['sphere', 'soft', '3d', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z', style: 'filled' },
+  { id: 'rounded-cube', name: 'Rounded Cube', category: 'premium', tags: ['cube', 'rounded', '3d', 'premium'], d: 'M4 4h16v16H4zM8 8h8v8H8z', style: 'filled' },
+  { id: 'glass-cube', name: 'Glass Cube', category: 'premium', tags: ['glass', 'cube', '3d', 'premium'], d: 'M4 4h16v16H4zM6 6h12v12H6z', style: 'filled' },
+  { id: 'floating-pill', name: 'Floating Pill', category: 'premium', tags: ['pill', 'floating', '3d', 'premium'], d: 'M8 4h8a4 4 0 0 1 0 8H8a4 4 0 0 1 0-8zM8 12h8a4 4 0 0 1 0 8H8a4 4 0 0 1 0-8z', style: 'filled' },
+  { id: 'metallic-disc', name: 'Metallic Disc', category: 'premium', tags: ['metallic', 'disc', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12z', style: 'filled' },
+  { id: 'torus-3d', name: '3D Torus', category: 'premium', tags: ['torus', '3d', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6a4 4 0 1 1 0 8 4 4 0 0 1 0-8z', style: 'filled' },
+  { id: 'glass-torus', name: 'Glass Torus', category: 'premium', tags: ['glass', 'torus', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10z', style: 'filled' },
+  { id: 'pyramid-3d', name: '3D Pyramid', category: 'premium', tags: ['pyramid', '3d', 'premium'], d: 'M12 2l10 18H2L12 2zm0 6l5 10H7l5-10z', style: 'filled' },
+  { id: 'iso-cube', name: 'Isometric Cube', category: 'premium', tags: ['isometric', 'cube', '3d', 'premium'], d: 'M12 2l8 4v12l-8 4-8-4V6l8-4zm0 4l4 2v8l-4 2-4-2V8l4-2z', style: 'filled' },
+  { id: 'wireframe-cube', name: 'Wireframe Cube', category: 'premium', tags: ['wireframe', 'cube', 'tech'], d: 'M4 4h16v16H4zM8 8h8v8H8zM4 4l4 4M20 4l-4 4M4 20l4-4M20 20l-4-4', style: 'outline' },
+  { id: 'hex-frame', name: 'Hexagonal Frame', category: 'premium', tags: ['hexagon', 'frame', 'tech'], d: 'M12 2l8 5v10l-8 5-8-5V7l8-5zm0 4l4 2.5v5L12 16l-4-2.5v-5L12 6z', style: 'outline' },
+  { id: 'spiral-form', name: 'Spiral Form', category: 'premium', tags: ['spiral', 'motion', 'premium'], d: 'M12 2a10 10 0 1 0 0 20c-5 0-9-4-9-9s4-9 9-9c2 0 4 1 5 3s1 4-1 5-4 1-5-1', style: 'outline' },
+  { id: 'orbit-lines', name: 'Orbit Lines', category: 'premium', tags: ['orbit', 'lines', 'tech'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', style: 'outline' },
+  { id: 'halo-ring', name: 'Halo Ring', category: 'premium', tags: ['halo', 'ring', 'premium'], d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14z', style: 'filled' },
+  { id: 'fluid-ribbon', name: 'Fluid Ribbon', category: 'premium', tags: ['ribbon', 'fluid', 'motion'], d: 'M4 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0', style: 'outline' },
+  { id: 'liquid-blob', name: 'Liquid Blob', category: 'premium', tags: ['blob', 'liquid', 'premium'], d: 'M12 2c4 0 8 3 8 7s-2 6-4 8-4 5-4 5-2-3-4-5-4-4-4-8 4-7 8-7z', style: 'filled' },
+  { id: 'layered-wave', name: 'Layered Wave', category: 'premium', tags: ['wave', 'layered', 'premium'], d: 'M2 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0M2 16c2-3 4-3 6 0s4 3 6 0 4-3 6 0M2 8c2-3 4-3 6 0s4 3 6 0 4-3 6 0', style: 'outline' },
+  
+  // Web Development (Enhanced)
   { id: 'html', name: 'HTML', category: 'web', tags: ['html', 'markup', 'web'], d: 'M3 3h18l-1.5 16L12 21l-7.5-2L3 3zm4 4l.5 6 4.5 1.5 4.5-1.5.5-6', style: 'outline' },
   { id: 'css', name: 'CSS', category: 'web', tags: ['css', 'style', 'design'], d: 'M3 3h18l-1.5 16L12 21l-7.5-2L3 3zm4 4h10l-.5 4H8l.5 4 3.5 1 3.5-1 .3-2', style: 'outline' },
   { id: 'js', name: 'JavaScript', category: 'web', tags: ['javascript', 'js', 'script'], d: 'M4 4h16v16H4zm10 12c0 2 1 3 3 3s3-1 3-2m-12-1c0 2 1 3 3 3s3-1 3-2', style: 'outline' },

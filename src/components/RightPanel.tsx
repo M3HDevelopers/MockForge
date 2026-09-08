@@ -2,7 +2,7 @@ import { useStudio } from '../store';
 import type { BgStyle, DeviceLayer, LightType, Material, PatternKind, ShadowPreset } from '../types';
 import {
   clamp, DECO_SETS, DEVICE_META, FIT_MODES, LIGHTING, MATERIALS, PATTERNS, SHADOWS,
-  TECH_BADGES, TYPO_PRESETS, textOn,
+  TECH_BADGES, TYPO_PRESETS, textOn, suggestFitMode,
 } from '../templates';
 import { DECO_PRESETS } from '../templates';
 import { ColorInput, PosGrid, Section, Seg, SliderRow, Toggle } from './ui';
@@ -21,12 +21,16 @@ export function RightPanel() {
   const project = useStudio(s => s.project)!;
   const device = selection?.kind === 'device' ? project.devices.find(d => d.id === selection.id) : undefined;
   const icon = selection?.kind === 'icon' ? project.icons.find(i => i.id === selection.id) : undefined;
+  const deco = selection?.kind === 'deco' ? project.decos.find(d => d.id === selection.id) : undefined;
+  const textbox = selection?.kind === 'textbox' ? project.textboxes.find(t => t.id === selection.id) : undefined;
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-y-auto bg-ink min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden bg-ink min-h-0">
         {device ? <DeviceProps d={device} />
           : icon ? <IconProps i={icon} />
+          : deco ? <DecoProps d={deco} />
+          : textbox ? <TextBoxProps t={textbox} />
           : selection?.kind === 'text' ? <TextProps />
           : selection?.kind === 'logo' ? <LogoProps />
           : <BackgroundProps />}
@@ -91,15 +95,60 @@ function DeviceProps({ d }: { d: DeviceLayer }) {
           ))}
         </div>
 
-        <div className="mt-3">
-          <div className="label-mono mb-1.5">Fit mode</div>
-          <Seg options={FIT_MODES} value={d.fit} onChange={(v) => { checkpoint(); patch(x => ({ ...x, fit: v })); }} />
-        </div>
-        <div className="mt-3">
-          <SliderRow label="Zoom" value={d.zoom} min={1} max={2.5} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, zoom: v }))} />
-          <SliderRow label="Pan X" value={d.panX} min={-1} max={1} step={0.01} fmt={v => v.toFixed(2)} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panX: v }))} />
-          <SliderRow label="Pan Y" value={d.panY} min={-1} max={1} step={0.01} fmt={v => v.toFixed(2)} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panY: v }))} />
-        </div>
+        {d.assetId && (
+          <>
+            <div className="mt-3">
+              <div className="label-mono mb-1.5">Fit mode</div>
+              <Seg options={FIT_MODES} value={d.fit} onChange={(v) => { checkpoint(); patch(x => ({ ...x, fit: v })); }} />
+            </div>
+            
+            <div className="mt-3 flex gap-1.5">
+              <button 
+                className="btn flex-1 !text-[10px] !py-1.5 justify-center"
+                onClick={() => { 
+                  checkpoint(); 
+                  // Auto-fit: calculate best fit mode based on aspect ratios
+                  const asset = project.assets.find(a => a.id === d.assetId);
+                  if (asset) {
+                    const screenAspect = (d.w / DEVICE_META[d.kind].aspect) / d.w;
+                    const imageAspect = asset.w / asset.h;
+                    const suggestedFit = suggestFitMode(screenAspect, imageAspect);
+                    patch(x => ({ ...x, zoom: 1, panX: 0, panY: 0, fit: suggestedFit }));
+                  } else {
+                    patch(x => ({ ...x, zoom: 1, panX: 0, panY: 0, fit: 'cover' }));
+                  }
+                }}
+              >
+                Auto-fit
+              </button>
+              <button 
+                className="btn flex-1 !text-[10px] !py-1.5 justify-center"
+                onClick={() => { 
+                  checkpoint(); 
+                  patch(x => ({ ...x, zoom: 1, panX: 0, panY: 0 })); 
+                }}
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <SliderRow label="Zoom" value={d.zoom} min={0.5} max={3} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, zoom: v }))} />
+              <SliderRow label="Position X" value={d.panX} min={-1} max={1} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panX: v }))} />
+              <SliderRow label="Position Y" value={d.panY} min={-1} max={1} step={0.01} fmt={v => `${Math.round(v * 100)}%`} onStart={checkpoint} onChange={v => patch(x => ({ ...x, panY: v }))} />
+            </div>
+
+            <div className="mt-2 p-2 rounded-lg border border-line bg-panel">
+              <div className="text-[9px] text-dim mb-1">Quick tips:</div>
+              <ul className="text-[9px] text-mut space-y-0.5">
+                <li>• Use "Auto-fit" for perfect fit</li>
+                <li>• Zoom in/out to adjust size</li>
+                <li>• Pan to reposition screenshot</li>
+                <li>• "Cover" mode fills entire frame</li>
+              </ul>
+            </div>
+          </>
+        )}
       </Section>
 
       <Section title="Transform">
@@ -483,6 +532,168 @@ function LogoProps() {
   );
 }
 
+function DecoProps({ d }: { d: any }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const patch = (fn: (x: any) => any) =>
+    update(p => ({ ...p, decos: p.decos.map(x => x.id === d.id ? fn(x) : x) }), false);
+
+  return (
+    <>
+      <Section title="Decoration" right={
+        <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => {
+          checkpoint();
+          update(p => ({ ...p, decos: p.decos.filter(x => x.id !== d.id) }));
+        }}>
+          <IcTrash size={12} />
+        </button>
+      }>
+        <div className="text-[11px] mb-2" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+          {d.preset}
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Size" value={Math.round(d.scale * 100)} min={2} max={30} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, scale: v / 100 }))} />
+        <SliderRow label="Rotation" value={d.rotation} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, rotation: v }))} />
+        <SliderRow label="Opacity" value={Math.round(d.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, opacity: v / 100 }))} />
+      </Section>
+
+      <Section title="Effects">
+        <SliderRow label="Blur" value={d.blur || 0} min={0} max={20} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, blur: v }))} />
+        <Toggle on={d.shadow || false} onChange={(v) => { checkpoint(); patch((x: any) => ({ ...x, shadow: v })); }} label="Shadow" />
+        <Toggle on={d.glow || false} onChange={(v) => { checkpoint(); patch((x: any) => ({ ...x, glow: v })); }} label="Glow" />
+        {d.glow && (
+          <ColorInput value={d.hue || '#ffffff'} onChange={(v) => { checkpoint(); patch((x: any) => ({ ...x, hue: v })); }} label="glow color" />
+        )}
+      </Section>
+
+      <Section title="Depth">
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            className={`py-2 text-[10px] rounded-md border cursor-pointer transition-all ${d.depth === 'back' ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+            onClick={() => { checkpoint(); patch((x: any) => ({ ...x, depth: 'back' })); }}
+          >
+            Behind devices
+          </button>
+          <button
+            className={`py-2 text-[10px] rounded-md border cursor-pointer transition-all ${d.depth === 'front' ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+            onClick={() => { checkpoint(); patch((x: any) => ({ ...x, depth: 'front' })); }}
+          >
+            In front
+          </button>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function TextBoxProps({ t }: { t: any }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const removeTextBox = useStudio(s => s.removeTextBox);
+  const patch = (fn: (x: any) => any) =>
+    update(p => ({ ...p, textboxes: p.textboxes.map(x => x.id === t.id ? fn(x) : x) }), false);
+
+  const fontFamilies = [
+    'Space Grotesk', 'IBM Plex Sans', 'Inter', 'Roboto', 'Open Sans', 
+    'Montserrat', 'Poppins', 'Raleway', 'Oswald', 'Merriweather',
+    'Source Code Pro', 'Fira Code', 'JetBrains Mono'
+  ];
+
+  return (
+    <>
+      <Section title="Text Box" right={
+        <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => removeTextBox(t.id)}>
+          <IcTrash size={12} />
+        </button>
+      }>
+        <textarea
+          className="input !text-[12px] !min-h-[60px] resize-y"
+          value={t.text}
+          onChange={(e) => patch((x: any) => ({ ...x, text: e.target.value }))}
+          onFocus={() => checkpoint()}
+          placeholder="Enter your text..."
+        />
+      </Section>
+
+      <Section title="Typography">
+        <div className="space-y-2">
+          <div>
+            <div className="label-mono mb-1">Font Family</div>
+            <select
+              className="input !text-[11px]"
+              value={t.fontFamily}
+              onChange={(e) => patch((x: any) => ({ ...x, fontFamily: e.target.value }))}
+            >
+              {fontFamilies.map(f => (
+                <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+              ))}
+            </select>
+          </div>
+          <SliderRow label="Font Size" value={t.fontSize} min={12} max={120} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, fontSize: v }))} />
+          <SliderRow label="Font Weight" value={t.fontWeight} min={100} max={900} step={100} fmt={v => `${v}`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, fontWeight: v }))} />
+          <div>
+            <div className="label-mono mb-1">Alignment</div>
+            <div className="grid grid-cols-3 gap-1">
+              {(['left', 'center', 'right'] as const).map(align => (
+                <button
+                  key={align}
+                  className={`py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize ${t.align === align ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+                  onClick={() => { checkpoint(); patch((x: any) => ({ ...x, align })); }}
+                >
+                  {align}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ColorInput value={t.color} onChange={v => patch((x: any) => ({ ...x, color: v }))} label="text color" />
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Width" value={Math.round(t.width * 100)} min={10} max={80} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, width: v / 100 }))} />
+        <SliderRow label="Rotation" value={t.rotation} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, rotation: v }))} />
+        <SliderRow label="Opacity" value={Math.round(t.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, opacity: v / 100 }))} />
+      </Section>
+
+      <Section title="Background">
+        <div>
+          <div className="label-mono mb-1">Type</div>
+          <div className="grid grid-cols-4 gap-1">
+            {(['none', 'solid', 'gradient', 'glass'] as const).map(type => (
+              <button
+                key={type}
+                className={`py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize ${t.bgType === type ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+                onClick={() => { checkpoint(); patch((x: any) => ({ ...x, bgType: type })); }}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+        {t.bgType !== 'none' && (
+          <>
+            <ColorInput value={t.bgColor} onChange={v => patch((x: any) => ({ ...x, bgColor: v }))} label="bg color" />
+            <SliderRow label="Padding" value={t.padding} min={0} max={40} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, padding: v }))} />
+            <SliderRow label="Border Radius" value={t.borderRadius} min={0} max={30} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, borderRadius: v }))} />
+          </>
+        )}
+      </Section>
+
+      <Section title="Effects">
+        <Toggle on={t.shadow} onChange={v => patch((x: any) => ({ ...x, shadow: v }))} label="Shadow" />
+        <Toggle on={t.glow} onChange={v => patch((x: any) => ({ ...x, glow: v }))} label="Glow" />
+        {t.glow && (
+          <ColorInput value={t.glowColor} onChange={v => patch((x: any) => ({ ...x, glowColor: v }))} label="glow color" />
+        )}
+      </Section>
+    </>
+  );
+}
+
 function IconProps({ i }: { i: import('../types').IconLayer }) {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
@@ -537,6 +748,38 @@ function IconProps({ i }: { i: import('../types').IconLayer }) {
       <Section title="Effects">
         <Toggle on={i.shadow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, shadow: v })); }} label="Shadow" />
         <Toggle on={i.glow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, glow: v })); }} label="Glow" />
+      </Section>
+
+      <Section title="Material Style">
+        <div className="grid grid-cols-3 gap-1">
+          {(['matte', 'glossy', 'glass', 'metallic', 'ceramic', 'holographic'] as const).map(mat => (
+            <button
+              key={mat}
+              onClick={() => { 
+                checkpoint(); 
+                // Apply material-specific styling
+                const materialStyles = {
+                  matte: { shadow: false, glow: false, bgStyle: 'rounded' as const, bgColor: '#888888' },
+                  glossy: { shadow: true, glow: false, bgStyle: 'gradient' as const, bgColor: '#ffffff' },
+                  glass: { shadow: false, glow: false, bgStyle: 'glass' as const, bgColor: '#ffffff' },
+                  metallic: { shadow: true, glow: false, bgStyle: 'gradient' as const, bgColor: '#c0c0c0' },
+                  ceramic: { shadow: true, glow: false, bgStyle: 'rounded' as const, bgColor: '#f5f5f5' },
+                  holographic: { shadow: false, glow: true, bgStyle: 'gradient' as const, bgColor: '#ff69b4' },
+                };
+                patch(x => ({ ...x, ...materialStyles[mat] }));
+              }}
+              className="py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: 'var(--color-line)',
+                background: 'var(--color-panel)',
+                color: 'var(--color-mut)',
+              }}
+            >
+              {mat}
+            </button>
+          ))}
+        </div>
       </Section>
     </>
   );

@@ -9,7 +9,7 @@ import { loadDemoAssets } from '../sampleScreens';
 import { Section } from './ui';
 import {
   IcBrowser, IcDevice, IcImage, IcLaptop, IcMonitor, IcPhone, IcPlus, IcRefresh, IcSpark,
-  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg,
+  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg, IcGrid, IcType,
 } from '../icons';
 import { IMAGE_ASSETS, searchImages } from '../imageAssets';
 import { ICONS, searchIcons } from '../iconLibrary';
@@ -18,7 +18,7 @@ const DEVICE_ICONS: Record<DeviceKind, (p: { size?: number }) => JSX.Element> = 
   laptop: IcLaptop, phone: IcPhone, tablet: IcTablet, browser: IcBrowser, monitor: IcMonitor,
 };
 
-type Tab = 'screens' | 'devices' | 'backdrop' | 'decor' | 'images' | 'icons';
+type Tab = 'screens' | 'devices' | 'backdrop' | 'decor' | 'images' | 'icons' | 'textboxes';
 
 export function LeftPanel() {
   const [tab, setTab] = useState<Tab>('screens');
@@ -29,6 +29,7 @@ export function LeftPanel() {
     { id: 'decor', label: 'Decor', icon: IcSpark },
     { id: 'images', label: 'Images', icon: IcImage },
     { id: 'icons', label: 'Icons', icon: IcSpark },
+    { id: 'textboxes', label: 'Text', icon: IcType },
   ];
   return (
     <div className="w-[264px] shrink-0 border-r border-line2 bg-panel flex flex-col">
@@ -85,8 +86,63 @@ export function LeftPanel() {
         {tab === 'decor' && <DecorTab />}
         {tab === 'images' && <ImagesTab />}
         {tab === 'icons' && <IconsTab />}
+        {tab === 'textboxes' && <TextboxesTab />}
       </div>
     </div>
+  );
+}
+
+function TextboxesTab() {
+  const project = useStudio(s => s.project)!;
+  const addTextBox = useStudio(s => s.addTextBox);
+  const removeTextBox = useStudio(s => s.removeTextBox);
+
+  return (
+    <>
+      <Section title={`Text Boxes · ${project.textboxes.length}`}>
+        <button
+          className="btn w-full justify-center !text-[11px] mb-2"
+          onClick={addTextBox}
+        >
+          <IcPlus size={12} /> Add Text Box
+        </button>
+        
+        {project.textboxes.length === 0 ? (
+          <p className="text-[10px] text-dim text-center py-4">
+            No text boxes yet. Click "Add Text Box" to create one.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {project.textboxes.map((tb, i) => (
+              <div key={tb.id} className="flex items-center gap-2 p-2 rounded-lg border border-line bg-panel">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-medium truncate">{tb.text || 'Empty text box'}</div>
+                  <div className="text-[9px] text-dim" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {tb.fontFamily} · {tb.fontSize}px
+                  </div>
+                </div>
+                <button
+                  className="icon-btn !w-5 !h-5 hover:!text-danger"
+                  onClick={() => removeTextBox(tb.id)}
+                >
+                  <IcTrash size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Tips">
+        <ul className="text-[9px] text-dim space-y-1">
+          <li>• Click text box on canvas to select</li>
+          <li>• Drag to move anywhere</li>
+          <li>• Edit properties in right panel</li>
+          <li>• Change font, size, color, background</li>
+          <li>• Add shadow or glow effects</li>
+        </ul>
+      </Section>
+    </>
   );
 }
 
@@ -383,9 +439,9 @@ function DecorTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
-  const [cat, setCat] = useState<'all' | 'geometric' | '3d' | 'abstract' | 'ui'>('all');
+  const [role, setRole] = useState<string>('all');
 
-  const list = DECO_PRESETS.filter(d => cat === 'all' || d.cat === cat);
+  const list = DECO_PRESETS.filter(d => role === 'all' || d.role === role);
   const add = (presetId: string) => {
     checkpoint();
     update(p => ({
@@ -405,15 +461,15 @@ function DecorTab() {
     <>
       <Section title={`Decorations · ${DECO_PRESETS.length}`}>
         <div className="flex flex-wrap gap-1 mb-2.5">
-          {(['all', 'geometric', '3d', 'abstract', 'ui'] as const).map(c => (
-            <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
+          {(['all', 'frame', 'depth', 'structure', 'texture', 'motion', 'tech', 'luxury', 'soft'] as const).map(r => (
+            <button key={r} onClick={() => setRole(r)} className={`chip capitalize !text-[10px] ${role === r ? 'on' : ''}`}>{r}</button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 max-h-[400px] overflow-y-auto">
           {list.map(d => (
             <button key={d.id} onClick={() => add(d.id)} className="p-2 rounded-lg border border-line bg-panel hover:border-acc/50 hover:bg-panel2 transition-all text-left group">
               <div className="text-[11px] font-medium group-hover:text-acc transition-colors">{d.label}</div>
-              <div className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.cat}</div>
+              <div className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.role}</div>
             </button>
           ))}
         </div>
@@ -568,9 +624,13 @@ function IconsTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
+  const addTechStackIcons = useStudio(s => s.addTechStackIcons);
+  const autoClusterIcons = useStudio(s => s.autoClusterIcons);
   const [cat, setCat] = useState<string>('all');
   const [q, setQ] = useState('');
   const [customIcons, setCustomIcons] = useState<any[]>([]);
+  const [showTechStack, setShowTechStack] = useState(false);
+  const [placementMode, setPlacementMode] = useState<'random' | 'around-device' | 'orbit'>('random');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
@@ -587,14 +647,37 @@ function IconsTab() {
   const addIcon = (iconId: string) => {
     checkpoint();
     const icon = list.find((i: any) => i.id === iconId);
+    
+    // Calculate position based on placement mode
+    let x = 0.5, y = 0.5;
+    if (placementMode === 'around-device' && project.devices.length > 0) {
+      const device = project.devices[0];
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 0.25 + Math.random() * 0.15;
+      x = (device.x + device.w / 2) / project.canvas.w + Math.cos(angle) * distance;
+      y = (device.y + device.w / DEVICE_META[device.kind].aspect / 2) / project.canvas.h + Math.sin(angle) * distance;
+    } else if (placementMode === 'orbit' && project.devices.length > 0) {
+      const device = project.devices[0];
+      const iconIndex = project.icons.length;
+      const totalIcons = iconIndex + 1;
+      const angle = (iconIndex / totalIcons) * Math.PI * 2;
+      const distance = 0.3;
+      x = (device.x + device.w / 2) / project.canvas.w + Math.cos(angle) * distance;
+      y = (device.y + device.w / DEVICE_META[device.kind].aspect / 2) / project.canvas.h + Math.sin(angle) * distance;
+    } else {
+      // Random placement
+      x = 0.2 + Math.random() * 0.6;
+      y = 0.2 + Math.random() * 0.6;
+    }
+    
     update(p => ({
       ...p,
       icons: [...p.icons, {
         id: uid(),
         iconId,
         iconPath: icon?.d || icon?.pathData || '',
-        x: 0.5,
-        y: 0.5,
+        x,
+        y,
         size: 0.08,
         color: '#ffffff',
         opacity: 1,
@@ -660,6 +743,63 @@ function IconsTab() {
           onChange={handleSvgUpload}
           style={{ display: 'none' }}
         />
+
+        {/* Tech Stack Visualizer */}
+        <button
+          className="btn w-full justify-center !text-[11px] mb-2"
+          onClick={() => setShowTechStack(!showTechStack)}
+        >
+          <IcSpark size={12} /> Tech Stack Visualizer
+        </button>
+        
+        {showTechStack && (
+          <div className="mb-2 p-2 rounded-lg border border-line bg-panel">
+            <div className="text-[10px] text-dim mb-1">Select tech stack:</div>
+            <div className="flex flex-wrap gap-1">
+              {['React', 'Node.js', 'MongoDB', 'TypeScript', 'Tailwind', 'Next.js', 'Vue', 'Angular', 'Firebase', 'Supabase'].map(tech => (
+                <button
+                  key={tech}
+                  className="chip !text-[9px]"
+                  onClick={() => {
+                    addTechStackIcons([tech]);
+                    setShowTechStack(false);
+                  }}
+                >
+                  {tech}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Auto-Cluster Icons */}
+        {project.icons.length >= 3 && (
+          <button
+            className="btn btn-ghost w-full justify-center !text-[11px] mb-2"
+            onClick={() => {
+              checkpoint();
+              autoClusterIcons();
+            }}
+          >
+            <IcGrid size={12} /> Auto-Cluster Icons
+          </button>
+        )}
+
+        {/* Placement Mode */}
+        <div className="mb-2">
+          <div className="label-mono mb-1">Placement Mode</div>
+          <div className="flex gap-1">
+            {(['random', 'around-device', 'orbit'] as const).map(mode => (
+              <button
+                key={mode}
+                className={`chip flex-1 justify-center !text-[9px] ${placementMode === mode ? 'on' : ''}`}
+                onClick={() => setPlacementMode(mode)}
+              >
+                {mode === 'random' ? 'Random' : mode === 'around-device' ? 'Around' : 'Orbit'}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="relative mb-2">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>

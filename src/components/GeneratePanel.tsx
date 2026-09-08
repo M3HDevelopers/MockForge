@@ -244,6 +244,8 @@ function VariationsTab() {
   const [busy, setBusy] = useState(false);
   const makeVariations = useStudio(s => s.makeVariations);
   const applyVariation = useStudio(s => s.applyVariation);
+  const mood = useStudio(s => s.mood);
+  const setMood = useStudio(s => s.setMood);
 
   const gen = async () => {
     setBusy(true);
@@ -275,6 +277,22 @@ function VariationsTab() {
             )}
           </button>
         ))}
+      </div>
+
+      {/* Mood Selection */}
+      <div className="mb-4">
+        <div className="label-mono mb-2">Design Mood</div>
+        <div className="flex flex-wrap gap-1.5">
+          {MOODS.map(m => (
+            <button
+              key={m}
+              onClick={() => setMood(m)}
+              className={`chip capitalize ${mood === m ? 'on' : ''}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Header */}
