@@ -72,17 +72,26 @@ export function GeneratePanel() {
 
 function DesignPackTab() {
   const generate = useStudio(s => s.generate);
+  const setGlobalMood = useStudio(s => s.setMood);
+  const history = useStudio(s => s.history);
+  const applySnapshot = useStudio(s => s.applySnapshot);
   const [packSize, setPackSize] = useState(10);
   const [mood, setMood] = useState<Mood>('auto');
   const [generating, setGenerating] = useState(false);
+  const [generatedCount, setGeneratedCount] = useState(0);
 
   const generatePack = async () => {
     setGenerating(true);
+    setGeneratedCount(0);
+    setGlobalMood(mood); // Set the mood first
+    
     // Generate multiple designs with different seeds
     for (let i = 0; i < packSize; i++) {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 150)); // Small delay for visual feedback
       generate('all');
+      setGeneratedCount(i + 1);
     }
+    
     setGenerating(false);
   };
 
@@ -136,7 +145,7 @@ function DesignPackTab() {
         {generating ? (
           <>
             <IcSpin size={16} />
-            Generating {packSize} designs...
+            Generating {generatedCount}/{packSize} designs...
           </>
         ) : (
           <>
@@ -151,10 +160,33 @@ function DesignPackTab() {
         <ul className="text-[10px] text-mut space-y-1">
           <li>✓ {packSize} unique design variations</li>
           <li>✓ Different backgrounds, layouts, and decorations</li>
-          <li>✓ All saved to your library</li>
+          <li>✓ All saved to your history</li>
           <li>✓ Ready to use in your portfolio</li>
         </ul>
       </div>
+
+      {history.length > 0 && (
+        <div className="mt-6">
+          <div className="label-mono mb-2">Recent Designs ({history.length})</div>
+          <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
+            {history.slice(0, 12).map(s => (
+              <button
+                key={s.id}
+                onClick={() => applySnapshot(s)}
+                className="group relative rounded-lg overflow-hidden border border-line hover:border-acc transition-colors"
+              >
+                <img src={s.thumb} alt={s.label} className="w-full aspect-[8/5] object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                  <span className="text-white text-[10px] font-semibold opacity-0 group-hover:opacity-100">Apply</span>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                  <div className="text-[9px] text-white truncate">{s.label}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

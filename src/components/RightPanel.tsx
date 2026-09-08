@@ -21,12 +21,14 @@ export function RightPanel() {
   const project = useStudio(s => s.project)!;
   const device = selection?.kind === 'device' ? project.devices.find(d => d.id === selection.id) : undefined;
   const icon = selection?.kind === 'icon' ? project.icons.find(i => i.id === selection.id) : undefined;
+  const deco = selection?.kind === 'deco' ? project.decos.find(d => d.id === selection.id) : undefined;
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto bg-ink min-h-0">
         {device ? <DeviceProps d={device} />
           : icon ? <IconProps i={icon} />
+          : deco ? <DecoProps d={deco} />
           : selection?.kind === 'text' ? <TextProps />
           : selection?.kind === 'logo' ? <LogoProps />
           : <BackgroundProps />}
@@ -523,6 +525,63 @@ function LogoProps() {
       </Section>
       <Section title="Position">
         <PosGrid value={l.position} onChange={(v) => { checkpoint(); patch(x => ({ ...x, position: v })); }} />
+      </Section>
+    </>
+  );
+}
+
+function DecoProps({ d }: { d: any }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const patch = (fn: (x: any) => any) =>
+    update(p => ({ ...p, decos: p.decos.map(x => x.id === d.id ? fn(x) : x) }), false);
+
+  return (
+    <>
+      <Section title="Decoration" right={
+        <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => {
+          checkpoint();
+          update(p => ({ ...p, decos: p.decos.filter(x => x.id !== d.id) }));
+        }}>
+          <IcTrash size={12} />
+        </button>
+      }>
+        <div className="text-[11px] mb-2" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+          {d.preset}
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Size" value={Math.round(d.scale * 100)} min={2} max={30} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, scale: v / 100 }))} />
+        <SliderRow label="Rotation" value={d.rotation} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, rotation: v }))} />
+        <SliderRow label="Opacity" value={Math.round(d.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, opacity: v / 100 }))} />
+      </Section>
+
+      <Section title="Effects">
+        <SliderRow label="Blur" value={d.blur || 0} min={0} max={20} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, blur: v }))} />
+        <Toggle on={d.shadow || false} onChange={(v) => { checkpoint(); patch((x: any) => ({ ...x, shadow: v })); }} label="Shadow" />
+        <Toggle on={d.glow || false} onChange={(v) => { checkpoint(); patch((x: any) => ({ ...x, glow: v })); }} label="Glow" />
+        {d.glow && (
+          <ColorInput value={d.hue || '#ffffff'} onChange={(v) => { checkpoint(); patch((x: any) => ({ ...x, hue: v })); }} label="glow color" />
+        )}
+      </Section>
+
+      <Section title="Depth">
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            className={`py-2 text-[10px] rounded-md border cursor-pointer transition-all ${d.depth === 'back' ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+            onClick={() => { checkpoint(); patch((x: any) => ({ ...x, depth: 'back' })); }}
+          >
+            Behind devices
+          </button>
+          <button
+            className={`py-2 text-[10px] rounded-md border cursor-pointer transition-all ${d.depth === 'front' ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+            onClick={() => { checkpoint(); patch((x: any) => ({ ...x, depth: 'front' })); }}
+          >
+            In front
+          </button>
+        </div>
       </Section>
     </>
   );

@@ -88,7 +88,13 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
         height: size,
         transform: `rotate(${deco.rotation}deg)`,
         opacity: deco.opacity,
-        filter: deco.blur > 0 ? `blur(${deco.blur}px)` : undefined,
+        filter: [
+          deco.blur > 0 ? `blur(${deco.blur}px)` : '',
+          deco.shadow ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' : '',
+          deco.glow ? `drop-shadow(0 0 12px ${deco.hue || '#ffffff'})` : '',
+        ].filter(Boolean).join(' ') || undefined,
+        pointerEvents: 'auto',
+        zIndex: selected ? 100 : 1,
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
