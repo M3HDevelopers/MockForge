@@ -148,15 +148,13 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
         ].filter(Boolean).join(' ') || undefined,
         pointerEvents: 'auto',
         zIndex: deco.zIndex ?? 1,
-        border: selected ? '2px solid var(--color-acc)' : 'none',
-        boxSizing: 'border-box',
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
     >
-      <DecoShapeSVG deco={deco} size={size} />
+      <DecoShapeSVG deco={deco} size={size} selected={selected} />
       
       {/* Selection handles */}
       {selected && !deco.locked && (
@@ -203,7 +201,7 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
   );
 }
 
-function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
+function DecoShapeSVG({ deco, size, selected }: { deco: any; size: number; selected?: boolean }) {
   const preset = DECO_PRESETS.find((p: any) => p.id === deco.preset);
   if (!preset) return null;
   
@@ -218,6 +216,11 @@ function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
           <stop offset="100%" stopColor={color} stopOpacity="1" />
         </radialGradient>
       </defs>
+      
+      {/* Selection border - SVG ke andar draw hoga */}
+      {selected && (
+        <rect x="2" y="2" width="96" height="96" fill="none" stroke="var(--color-acc)" strokeWidth="2" strokeDasharray="4 2" />
+      )}
       
       {/* Legacy shapes */}
       {preset.prim === 'disc' && <circle cx="50" cy="50" r="45" fill={color} />}
@@ -863,8 +866,6 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
         transform: `rotate(${icon.rotation}deg)`,
         opacity: icon.opacity,
         zIndex: icon.zIndex ?? 500,
-        border: selected ? '2px solid var(--color-acc)' : 'none',
-        boxSizing: 'border-box',
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -894,7 +895,7 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
         />
       )}
       
-      {/* Icon SVG */}
+      {/* Icon SVG with selection border */}
       <svg
         width={size}
         height={size}
@@ -911,6 +912,10 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
           height: size,
         }}
       >
+        {/* Selection border - SVG ke andar */}
+        {selected && (
+          <rect x="1" y="1" width="22" height="22" fill="none" stroke="var(--color-acc)" strokeWidth="0.5" strokeDasharray="2 1" />
+        )}
         <path d={iconDef.d} />
       </svg>
       
