@@ -1219,9 +1219,14 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
           data-canvas-background="true"
-          onClick={handleCanvasClick}
+          onClick={(e) => {
+            // Only handle click if it's directly on this div, not on child objects
+            if (e.target === e.currentTarget) {
+              handleCanvasClick(e);
+            }
+          }}
           onPointerDown={(e) => {
-            // Only select background if clicking directly on canvas, not on objects
+            // Only select background if clicking directly on this div, not on child objects
             if (toolMode === 'select' && e.target === e.currentTarget) {
               setSelection({ kind: 'background' });
             }

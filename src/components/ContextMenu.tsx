@@ -58,20 +58,15 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
   const handleBringForward = () => {
     if (selection?.kind === 'device' && selection.id) {
       checkpoint();
-      update(p => ({
-        ...p,
-        devices: p.devices.map(d => {
-          if (d.id === selection.id) {
-            const currentIndex = p.devices.findIndex(dev => dev.id === d.id);
-            if (currentIndex < p.devices.length - 1) {
-              const newDevices = [...p.devices];
-              [newDevices[currentIndex], newDevices[currentIndex + 1]] = [newDevices[currentIndex + 1], newDevices[currentIndex]];
-              return newDevices;
-            }
-          }
-          return d;
-        }).flat()
-      }));
+      update(p => {
+        const currentIndex = p.devices.findIndex(dev => dev.id === selection.id);
+        if (currentIndex < p.devices.length - 1) {
+          const newDevices = [...p.devices];
+          [newDevices[currentIndex], newDevices[currentIndex + 1]] = [newDevices[currentIndex + 1], newDevices[currentIndex]];
+          return { ...p, devices: newDevices };
+        }
+        return p;
+      });
       toast('Brought forward');
     }
     onClose();
@@ -80,20 +75,15 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
   const handleSendBackward = () => {
     if (selection?.kind === 'device' && selection.id) {
       checkpoint();
-      update(p => ({
-        ...p,
-        devices: p.devices.map(d => {
-          if (d.id === selection.id) {
-            const currentIndex = p.devices.findIndex(dev => dev.id === d.id);
-            if (currentIndex > 0) {
-              const newDevices = [...p.devices];
-              [newDevices[currentIndex], newDevices[currentIndex - 1]] = [newDevices[currentIndex - 1], newDevices[currentIndex]];
-              return newDevices;
-            }
-          }
-          return d;
-        }).flat()
-      }));
+      update(p => {
+        const currentIndex = p.devices.findIndex(dev => dev.id === selection.id);
+        if (currentIndex > 0) {
+          const newDevices = [...p.devices];
+          [newDevices[currentIndex], newDevices[currentIndex - 1]] = [newDevices[currentIndex - 1], newDevices[currentIndex]];
+          return { ...p, devices: newDevices };
+        }
+        return p;
+      });
       toast('Sent backward');
     }
     onClose();
@@ -144,20 +134,27 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
             <span className="ml-auto text-[10px]" style={{ color: 'var(--color-dim)' }}>Ctrl+[</span>
           </div>
           <div className="h-px bg-line my-1" />
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => { toast('Properties shown in right panel'); onClose(); }}>
             <IcType size={14} />
-            <span>Edit Properties</span>
+            <span>Edit Properties →</span>
           </div>
         </>
       )}
 
       {selection.kind === 'icon' && (
         <>
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => { toast('Select icon to edit properties in right panel'); onClose(); }}>
             <IcType size={14} />
-            <span>Edit Icon</span>
+            <span>Edit Icon Properties</span>
           </div>
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              useStudio.getState().update(p => ({ ...p, icons: p.icons.filter(i => i.id !== selection.id) }));
+              toast('Icon deleted');
+            }
+            onClose();
+          }}>
             <IcTrash size={14} />
             <span>Delete Icon</span>
           </div>
@@ -166,11 +163,18 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
 
       {selection.kind === 'textbox' && (
         <>
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => { toast('Double-click text to edit'); onClose(); }}>
             <IcType size={14} />
-            <span>Edit Text</span>
+            <span>Edit Text (Double-click)</span>
           </div>
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              useStudio.getState().update(p => ({ ...p, textboxes: p.textboxes.filter(t => t.id !== selection.id) }));
+              toast('Text deleted');
+            }
+            onClose();
+          }}>
             <IcTrash size={14} />
             <span>Delete Text</span>
           </div>
@@ -179,11 +183,18 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
 
       {selection.kind === 'deco' && (
         <>
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => { toast('Select decoration to edit properties in right panel'); onClose(); }}>
             <IcType size={14} />
-            <span>Edit Decoration</span>
+            <span>Edit Decoration Properties</span>
           </div>
-          <div className={menuItemClass} style={{ color: 'var(--color-dim)' }}>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              useStudio.getState().update(p => ({ ...p, decos: p.decos.filter(d => d.id !== selection.id) }));
+              toast('Decoration deleted');
+            }
+            onClose();
+          }}>
             <IcTrash size={14} />
             <span>Delete Decoration</span>
           </div>
