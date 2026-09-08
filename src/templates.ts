@@ -117,13 +117,22 @@ export function computeFit(s: ScreenRect, iw: number, ih: number, fit: FitMode, 
     dh = ih * scale;
   }
   
-  // Apply zoom (maintains aspect ratio)
-  dw *= zoom;
-  dh *= zoom;
+  // Apply zoom (maintains aspect ratio) - CRITICAL FIX
+  // Zoom should scale from center, not from top-left
+  const baseW = dw;
+  const baseH = dh;
+  dw = baseW * zoom;
+  dh = baseH * zoom;
   
   // Calculate center position with pan offset
-  const cx = s.x + s.w / 2 + (panX * s.w) / 2;
-  const cy = s.y + s.h / 2 + (panY * s.h) / 2;
+  // Pan should be relative to screen size, not image size
+  const centerX = s.x + s.w / 2;
+  const centerY = s.y + s.h / 2;
+  const panOffsetX = panX * s.w * 0.5; // Max 50% of screen width
+  const panOffsetY = panY * s.h * 0.5; // Max 50% of screen height
+  
+  const cx = centerX + panOffsetX;
+  const cy = centerY + panOffsetY;
   
   // Position image centered at (cx, cy)
   const dx = cx - dw / 2;
@@ -470,6 +479,7 @@ export function makeDefaultProject(name: string, type: string, cw: number, ch: n
     decos: [],
     mood: 'auto',
     icons: [],
+    textboxes: [],
   };
 }
 
@@ -492,6 +502,7 @@ export function migrate(p: any): Project {
     text: { ...base.text, ...(p.text || {}) },
     logo: { ...base.logo, ...(p.logo || {}) },
     icons: p.icons || [],
+    textboxes: p.textboxes || [],
   };
 }
 

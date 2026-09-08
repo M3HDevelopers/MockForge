@@ -454,12 +454,41 @@ function ScreenImage({ d, dataUrl, iw, ih }: { d: DeviceLayer; dataUrl: string; 
   const f = computeFit(g, iw, ih, d.fit, d.zoom, d.panX, d.panY);
   const filter = Math.abs((d.brightness ?? 1) - 1) > 0.02
     ? `brightness(${d.brightness})` : undefined;
+  
+  // CRITICAL FIX: Ensure image maintains aspect ratio and doesn't overflow
+  const imgStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: f.dx - g.x,
+    top: f.dy - g.y,
+    width: f.dw,
+    height: f.dh,
+    pointerEvents: 'none',
+    filter,
+    opacity: d.opacity ?? 1,
+    objectFit: d.fit === 'stretch' ? 'fill' : d.fit === 'cover' ? 'cover' : 'contain',
+    maxWidth: 'none',
+    maxHeight: 'none',
+  };
+  
   return (
-    <div className="absolute overflow-hidden" style={{ left: g.x, top: g.y, width: g.w, height: g.h, borderRadius: g.r }}>
+    <div 
+      className="absolute overflow-hidden" 
+      style={{ 
+        left: g.x, 
+        top: g.y, 
+        width: g.w, 
+        height: g.h, 
+        borderRadius: g.r,
+        // Ensure clipping works properly
+        clipPath: `inset(0 round ${g.r}px)`,
+      }}
+    >
       <img
-        src={dataUrl} alt="" draggable={false}
+        src={dataUrl} 
+        alt="" 
+        draggable={false}
         className="absolute select-none"
-        style={{ left: f.dx - g.x, top: f.dy - g.y, width: f.dw, height: f.dh, pointerEvents: 'none', filter, opacity: d.opacity ?? 1 }}
+        style={imgStyle}
       />
     </div>
   );

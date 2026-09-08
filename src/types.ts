@@ -10,6 +10,33 @@ export type PosPreset =
   | 'center-left' | 'center' | 'center-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right';
 
+// Custom Text Box types
+export type TextBoxAlign = 'left' | 'center' | 'right';
+export type TextBoxBgType = 'none' | 'solid' | 'gradient' | 'glass';
+
+export interface TextBox {
+  id: string;
+  text: string;
+  x: number; // percentage 0-1
+  y: number; // percentage 0-1
+  width: number; // percentage 0-1
+  fontSize: number; // px
+  fontFamily: string;
+  fontWeight: number;
+  color: string;
+  align: TextBoxAlign;
+  bgType: TextBoxBgType;
+  bgColor: string;
+  bgGradient?: string;
+  padding: number; // px
+  borderRadius: number; // px
+  opacity: number; // 0-1
+  rotation: number; // degrees
+  shadow: boolean;
+  glow: boolean;
+  glowColor: string;
+}
+
 /* ================= new enums ================= */
 export type BgStyle = 'plain' | 'studio' | 'architectural' | 'abstract' | 'grid' | 'editorial' | 'tech' | 'glass';
 export type LightType = 'none' | 'top' | 'bottom' | 'left' | 'right' | 'center' | 'ambient';
@@ -219,6 +246,7 @@ export interface Project {
   decos: DecoLayer[];
   mood: Mood;
   icons: IconLayer[];
+  textboxes: TextBox[];
 }
 
 /* ================= editor state ================= */

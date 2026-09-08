@@ -154,6 +154,10 @@ interface StudioState {
   addTechStackIcons: (techStack: string[]) => void;
   autoClusterIcons: () => void;
 
+  // Text box actions
+  addTextBox: () => void;
+  removeTextBox: (id: string) => void;
+
   randomize: () => void;
   setMood: (m: Mood) => void;
   toggleLock: (k: keyof GenLocks) => void;
@@ -447,6 +451,40 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   removeIcon: (id) => {
     get().update(p => ({ ...p, icons: p.icons.filter(i => i.id !== id) }));
+    set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  addTextBox: () => {
+    const id = uid();
+    get().update(p => ({
+      ...p,
+      textboxes: [...p.textboxes, {
+        id,
+        text: 'Your text here',
+        x: 0.5,
+        y: 0.5,
+        width: 0.3,
+        fontSize: 24,
+        fontFamily: 'Space Grotesk',
+        fontWeight: 600,
+        color: '#ffffff',
+        align: 'center',
+        bgType: 'none',
+        bgColor: '#000000',
+        padding: 12,
+        borderRadius: 8,
+        opacity: 1,
+        rotation: 0,
+        shadow: false,
+        glow: false,
+        glowColor: '#ff6b3d',
+      }],
+    }));
+    set({ selection: { kind: 'textbox', id } });
+  },
+
+  removeTextBox: (id) => {
+    get().update(p => ({ ...p, textboxes: p.textboxes.filter(t => t.id !== id) }));
     set(s => s.selection?.id === id ? { selection: null } : s);
   },
 
