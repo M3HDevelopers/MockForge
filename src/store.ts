@@ -113,6 +113,10 @@ interface StudioState {
     includeText: boolean;
   };
   setGenerateConfig: (config: Partial<StudioState['generateConfig']>) => void;
+  
+  // Theme variations from color extraction
+  themeVariations: import('./utils/colorExtraction').ThemeVariation[];
+  setThemeVariations: (variations: import('./utils/colorExtraction').ThemeVariation[]) => void;
 
   boot: () => void;
   goto: (v: 'dashboard' | 'editor') => void;
@@ -228,6 +232,9 @@ export const useStudio = create<StudioState>((set, get) => ({
     includeText: true,
   },
   setGenerateConfig: (config) => set(s => ({ generateConfig: { ...s.generateConfig, ...config } })),
+  
+  themeVariations: [],
+  setThemeVariations: (variations) => set({ themeVariations: variations }),
 
   boot: () => {
     if (get().booted) return;
@@ -665,13 +672,15 @@ export const useStudio = create<StudioState>((set, get) => ({
   makeVariations: async (type?: 'vector' | 'image' | 'hybrid') => {
     const cur = get().project;
     if (!cur) return [];
-    const list = generateVariations(cur, 10, get().mood, type);
+    const themeVars = get().themeVariations;
+    const list = generateVariations(cur, 10, get().mood, type, themeVars.length > 0 ? themeVars : undefined);
     const snaps: DesignSnapshot[] = [];
     for (let i = 0; i < list.length; i++) {
       const p = { ...list[i], assets: cur.assets };
       const thumb = await makeThumbnail(p, 320);
       const typeLabel = type ? ` (${type})` : '';
-      snaps.push(snapshot(p, `Variation ${String(i + 1).padStart(2, '0')}${typeLabel}`, thumb));
+      const themeLabel = themeVars.length > 0 ? ` [${themeVars[i % themeVars.length].type}]` : '';
+      snaps.push(snapshot(p, `Variation ${String(i + 1).padStart(2, '0')}${typeLabel}${themeLabel}`, thumb));
     }
     set({ variations: snaps, variationsOpen: true });
     return snaps;

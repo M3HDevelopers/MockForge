@@ -3,6 +3,7 @@ import { useStudio } from '../store';
 import type { DesignSnapshot, GenLocks, Mood, SurpriseMode } from '../types';
 import { scoreDesign } from '../engine';
 import { Section } from './ui';
+import { ThemePanel } from './ThemePanel';
 import { IcClose, IcCompare, IcDice, IcGrid, IcHeart, IcLock, IcSpin, IcStar, IcTrash, IcUnlock, IcWand, IcLayers, IcRefresh } from '../icons';
 
 const MOODS: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate', 'luxury', 'impact', 'technical'];
@@ -19,7 +20,7 @@ const LOCK_LABELS: { k: keyof GenLocks; label: string }[] = [
   { k: 'decoration', label: 'Decor' }, { k: 'text', label: 'Text' }, { k: 'logo', label: 'Logo' },
 ];
 
-type Tab = 'generate' | 'variations' | 'library';
+type Tab = 'generate' | 'variations' | 'library' | 'themes';
 
 export function GeneratePanel() {
   const open = useStudio(s => s.genOpen);
@@ -51,9 +52,9 @@ export function GeneratePanel() {
             <span className="label-mono">procedural · no AI</span>
           </div>
           <div className="flex items-center gap-1">
-            {(['generate', 'variations', 'library'] as Tab[]).map(t => (
+            {(['generate', 'variations', 'themes', 'library'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-medium capitalize transition-colors ${tab === t ? 'bg-panel3 text-fg' : 'text-dim hover:text-mut'}`}>
-                {t}
+                {t === 'themes' ? 'Smart Themes' : t}
               </button>
             ))}
             <button className="icon-btn ml-2" onClick={() => setOpen(false)}><IcClose size={15} /></button>
@@ -62,6 +63,7 @@ export function GeneratePanel() {
         <div className="flex-1 overflow-y-auto">
           {tab === 'generate' && <GenerateTab />}
           {tab === 'variations' && <VariationsTab />}
+          {tab === 'themes' && <ThemePanel />}
           {tab === 'library' && <LibraryTab />}
         </div>
       </div>
