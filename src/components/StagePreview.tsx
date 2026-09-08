@@ -8,6 +8,7 @@ import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
 import { ICONS } from '../iconLibrary';
 import { AdvancedGrid } from './AdvancedGrid';
+import { IcLock } from '../icons';
 
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
@@ -963,6 +964,166 @@ function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { t
   );
 }
 
+// Canvas Image Layer - Independent image object on canvas
+function CanvasImageLayer({ img, project, onDragStart, onDragEnd }: { 
+  img: import('../types').CanvasImage; 
+  project: import('../types').Project;
+  onDragStart: () => void; 
+  onDragEnd: () => void; 
+}) {
+  const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
+  const updateCanvasImage = useStudio(s => s.updateCanvasImage);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  
+  const selected = useStudio(s => s.selection?.kind === 'canvasimage' && (s.selection.id === img.id || s.selection.ids?.includes(img.id)));
+  const asset = project.assets.find(a => a.id === img.assetId);
+  
+  const dragRef = useRef<{ mode: 'move' | 'resize' | 'rotate'; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; startAngle?: number } | null>(null);
+  
+  if (!asset || !img.visible) return null;
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    if (img.locked) return;
+    e.stopPropagation();
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'canvasimage' && selection.ids?.includes(img.id)) {
+        useStudio.getState().removeFromSelection('canvasimage', img.id);
+      } else {
+        addToSelection('canvasimage', img.id);
+      }
+    } else {
+      if (!(selection?.kind === 'canvasimage' && selection.ids?.includes(img.id))) {
+        setSelection({ kind: 'canvasimage', id: img.id, ids: [img.id] });
+      }
+    }
+    
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: img.x, oy: img.y, ow: img.width, oh: img.height };
+    onDragStart();
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (img.locked) return;
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom;
+    const dy = (e.clientY - drag.sy) / zoom;
+    
+    if (drag.mode === 'move') {
+      const nx = drag.ox + dx;
+      const ny = drag.oy + dy;
+      updateCanvasImage(img.id, { x: nx, y: ny });
+    } else if (drag.mode === 'resize') {
+      const nw = Math.max(50, drag.ow + dx);
+      const nh = Math.max(50, drag.oh + dy);
+      updateCanvasImage(img.id, { width: nw, height: nh });
+    } else if (drag.mode === 'rotate') {
+      const centerX = img.x + img.width / 2;
+      const centerY = img.y + img.height / 2;
+      const currentAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+      const startAngle = drag.startAngle || 0;
+      const newRotation = img.rotation + (currentAngle - startAngle);
+      updateCanvasImage(img.id, { rotation: newRotation });
+      drag.startAngle = currentAngle;
+    }
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+    onDragEnd();
+  };
+  
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: img.x,
+        top: img.y,
+        width: img.width,
+        height: img.height,
+        transform: `rotate(${img.rotation}deg)`,
+        opacity: img.opacity,
+        zIndex: img.zIndex,
+        cursor: img.locked ? 'not-allowed' : 'move',
+        borderRadius: img.borderRadius,
+        boxShadow: img.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : img.glow ? `0 0 20px ${img.glowColor}` : undefined,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <img
+        src={asset.dataUrl}
+        alt={img.name}
+        draggable={false}
+        className="w-full h-full object-cover"
+        style={{ borderRadius: img.borderRadius, pointerEvents: 'none' }}
+      />
+      
+      {selected && !img.locked && (
+        <>
+          {/* Selection border */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            border: '2px solid var(--color-acc)',
+            borderRadius: img.borderRadius,
+          }} />
+          
+          {/* Corner resize handles */}
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nwse-resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: img.x, oy: img.y, ow: img.width, oh: img.height };
+            }}
+          />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nesw-resize" />
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nesw-resize" />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nwse-resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: img.x, oy: img.y, ow: img.width, oh: img.height };
+            }}
+          />
+          
+          {/* Rotation handle */}
+          <div className="absolute left-1/2 -top-8 -translate-x-1/2 w-4 h-4 bg-acc2 border-2 border-white rounded-full cursor-grab"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              const centerX = img.x + img.width / 2;
+              const centerY = img.y + img.height / 2;
+              const startAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+              dragRef.current = { mode: 'rotate', sx: e.clientX, sy: e.clientY, ox: img.x, oy: img.y, ow: img.width, oh: img.height, startAngle };
+            }}
+          />
+          
+          {/* Name label */}
+          <div className="absolute -top-7 left-0 px-2 py-0.5 bg-acc text-white text-[10px] font-mono font-bold rounded whitespace-nowrap">
+            {img.name.toUpperCase()}
+          </div>
+        </>
+      )}
+      
+      {img.locked && (
+        <div className="absolute top-1 right-1 w-5 h-5 bg-panel2 border border-line rounded flex items-center justify-center">
+          <IcLock size={12} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDragEnd }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
@@ -1325,6 +1486,9 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
             ))}
             {p.textboxes.map(textbox => (
               <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
+            ))}
+            {p.canvasImages?.map(img => (
+              <CanvasImageLayer key={img.id} img={img} project={p} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />

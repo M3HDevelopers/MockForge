@@ -23,6 +23,7 @@ export function RightPanel() {
   const icon = selection?.kind === 'icon' ? project.icons.find(i => i.id === selection.id) : undefined;
   const deco = selection?.kind === 'deco' ? project.decos.find(d => d.id === selection.id) : undefined;
   const textbox = selection?.kind === 'textbox' ? project.textboxes.find(t => t.id === selection.id) : undefined;
+  const canvasImage = selection?.kind === 'canvasimage' ? project.canvasImages?.find(img => img.id === selection.id) : undefined;
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col h-full overflow-hidden">
@@ -31,6 +32,7 @@ export function RightPanel() {
           : icon ? <IconProps i={icon} />
           : deco ? <DecoProps d={deco} />
           : textbox ? <TextBoxProps t={textbox} />
+          : canvasImage ? <CanvasImageProps img={canvasImage} />
           : selection?.kind === 'text' ? <TextProps />
           : selection?.kind === 'logo' ? <LogoProps />
           : <BackgroundProps />}
@@ -868,6 +870,23 @@ function LayersList() {
           );
         })}
 
+        {/* Canvas Images */}
+        {project.canvasImages?.map((img: any) => {
+          const on = selection?.kind === 'canvasimage' && selection.id === img.id;
+          return (
+            <div key={img.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'canvasimage', id: img.id })}
+              style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, canvasImages: p.canvasImages.map(x => x.id === img.id ? { ...x, visible: !x.visible } : x) }), false); }}>
+                {img.visible ? <IcEye size={12} /> : <IcEyeOff size={12} />}
+              </button>
+              <span className="flex-1 text-[12px] truncate" style={{ opacity: img.visible ? 1 : 0.45 }}>{img.name}</span>
+              <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, canvasImages: p.canvasImages.filter(x => x.id !== img.id) }), false); }}>
+                <IcTrash size={10} />
+              </button>
+            </div>
+          );
+        })}
+
         {([
           { kind: 'text' as const, label: 'Text block', on: project.text.enabled, toggle: () => update(p => ({ ...p, text: { ...p.text, enabled: !p.text.enabled } }), false) },
           { kind: 'logo' as const, label: 'Logo', on: project.logo.enabled, toggle: () => update(p => ({ ...p, logo: { ...p.logo, enabled: !p.logo.enabled } }), false) },
@@ -886,5 +905,63 @@ function LayersList() {
         })}
       </div>
     </Section>
+  );
+}
+
+function CanvasImageProps({ img }: { img: import('../types').CanvasImage }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const removeCanvasImage = useStudio(s => s.removeCanvasImage);
+  const updateCanvasImage = useStudio(s => s.updateCanvasImage);
+  const toast = useStudio(s => s.toast);
+  
+  const patch = (updates: Partial<import('../types').CanvasImage>) => {
+    updateCanvasImage(img.id, updates);
+  };
+
+  return (
+    <>
+      <Section title="Canvas Image" right={
+        <div className="flex gap-1">
+          <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => { removeCanvasImage(img.id); toast('Image deleted'); }}>
+            <IcTrash size={12} />
+          </button>
+        </div>
+      }>
+        <div className="text-[11px] mb-2" style={{ color: 'var(--color-dim)', fontFamily: 'var(--font-mono)' }}>
+          Independent image object
+        </div>
+      </Section>
+
+      <Section title="Position & Size">
+        <SliderRow label="X" value={Math.round(img.x)} min={-500} max={2000} onStart={checkpoint} onChange={v => patch({ x: v })} />
+        <SliderRow label="Y" value={Math.round(img.y)} min={-500} max={2000} onStart={checkpoint} onChange={v => patch({ y: v })} />
+        <SliderRow label="Width" value={Math.round(img.width)} min={50} max={2000} onStart={checkpoint} onChange={v => patch({ width: v })} />
+        <SliderRow label="Height" value={Math.round(img.height)} min={50} max={2000} onStart={checkpoint} onChange={v => patch({ height: v })} />
+        <SliderRow label="Rotation" value={Math.round(img.rotation)} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch({ rotation: v })} />
+      </Section>
+
+      <Section title="Appearance">
+        <SliderRow label="Opacity" value={Math.round(img.opacity * 100)} min={0} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch({ opacity: v / 100 })} />
+        <SliderRow label="Border Radius" value={img.borderRadius} min={0} max={100} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch({ borderRadius: v })} />
+      </Section>
+
+      <Section title="Effects">
+        <Toggle on={img.shadow} onChange={v => { checkpoint(); patch({ shadow: v }); }} label="Shadow" />
+        <Toggle on={img.glow} onChange={v => { checkpoint(); patch({ glow: v }); }} label="Glow" />
+        {img.glow && (
+          <div className="mt-2">
+            <ColorInput value={img.glowColor} onChange={v => { checkpoint(); patch({ glowColor: v }); }} label="Glow color" />
+          </div>
+        )}
+      </Section>
+
+      <Section title="Layer">
+        <Toggle on={img.locked} onChange={v => { checkpoint(); patch({ locked: v }); toast(v ? 'Image locked' : 'Image unlocked'); }} label="Locked" />
+        <Toggle on={img.visible} onChange={v => { checkpoint(); patch({ visible: v }); }} label="Visible" />
+        <SliderRow label="Z-Index" value={img.zIndex} min={0} max={100} onStart={checkpoint} onChange={v => patch({ zIndex: v })} />
+      </Section>
+    </>
   );
 }

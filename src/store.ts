@@ -162,6 +162,11 @@ interface StudioState {
   addTextBox: () => void;
   removeTextBox: (id: string) => void;
   
+  // Canvas Images
+  addCanvasImage: (assetId: string, x?: number, y?: number) => void;
+  removeCanvasImage: (id: string) => void;
+  updateCanvasImage: (id: string, updates: Partial<import('./types').CanvasImage>) => void;
+  
   // Clipboard & Lock System
   clipboard: { type: string; data: any } | null;
   copySelection: () => void;
@@ -610,6 +615,52 @@ export const useStudio = create<StudioState>((set, get) => ({
   removeTextBox: (id) => {
     get().update(p => ({ ...p, textboxes: p.textboxes.filter(t => t.id !== id) }));
     set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  addCanvasImage: (assetId, x, y) => {
+    const cur = get().project;
+    if (!cur) return;
+    const asset = cur.assets.find(a => a.id === assetId);
+    if (!asset) return;
+    
+    const id = uid();
+    const centerX = x ?? (cur.canvas.w / 2 - asset.w / 4);
+    const centerY = y ?? (cur.canvas.h / 2 - asset.h / 4);
+    
+    get().update(p => ({
+      ...p,
+      canvasImages: [...p.canvasImages, {
+        id,
+        assetId,
+        x: centerX,
+        y: centerY,
+        width: asset.w / 2,
+        height: asset.h / 2,
+        rotation: 0,
+        opacity: 1,
+        locked: false,
+        visible: true,
+        name: asset.name || 'Image',
+        zIndex: p.canvasImages.length,
+        borderRadius: 0,
+        shadow: false,
+        glow: false,
+        glowColor: '#ff6b3d',
+      }]
+    }));
+    set({ selection: { kind: 'canvasimage', id, ids: [id] } });
+  },
+
+  removeCanvasImage: (id) => {
+    get().update(p => ({ ...p, canvasImages: p.canvasImages.filter(img => img.id !== id) }));
+    set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  updateCanvasImage: (id, updates) => {
+    get().update(p => ({
+      ...p,
+      canvasImages: p.canvasImages.map(img => img.id === id ? { ...img, ...updates } : img)
+    }), false);
   },
 
   addIconsAroundDevice: (deviceId, iconIds) => {

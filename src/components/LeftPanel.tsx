@@ -255,6 +255,12 @@ function ScreensTab() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="icon-btn !w-5 !h-5" onClick={() => {
+                    useStudio.getState().addCanvasImage(a.id);
+                    toast('Image added to canvas');
+                  }} title="Add to Canvas as Independent Object">
+                    <IcPlus size={10} />
+                  </button>
                   <button className="icon-btn !w-5 !h-5" onClick={() => duplicateAsset(a.id)} title="Duplicate"><IcCopy size={10} /></button>
                   <button className="icon-btn !w-5 !h-5" onClick={() => removeAsset(a.id)} title="Remove"><IcTrash size={10} /></button>
                 </div>

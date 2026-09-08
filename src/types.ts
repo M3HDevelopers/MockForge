@@ -115,6 +115,27 @@ export interface IconLayer {
   gradient?: { from: string; to: string };
 }
 
+// Canvas Image - Independent image object on canvas
+export interface CanvasImage {
+  id: string;
+  assetId: string; // Reference to Asset
+  x: number; // pixel position
+  y: number; // pixel position
+  width: number; // pixel width
+  height: number; // pixel height
+  rotation: number; // degrees
+  opacity: number; // 0-1
+  locked: boolean;
+  visible: boolean;
+  name: string;
+  zIndex: number;
+  crop?: { x: number; y: number; width: number; height: number }; // optional crop
+  borderRadius: number; // px
+  shadow: boolean;
+  glow: boolean;
+  glowColor: string;
+}
+
 /* ================= interfaces ================= */
 export interface Asset {
   id: string;
@@ -247,11 +268,12 @@ export interface Project {
   mood: Mood;
   icons: IconLayer[];
   textboxes: TextBox[];
+  canvasImages: CanvasImage[]; // Independent canvas images
 }
 
 /* ================= editor state ================= */
 export interface Selection {
-  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon' | 'textbox';
+  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon' | 'textbox' | 'canvasimage';
   id?: string;
   ids?: string[]; // Multi-select support
 }
