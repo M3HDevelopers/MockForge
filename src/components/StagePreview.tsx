@@ -43,7 +43,7 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
   );
 }
 
-function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; canvasH: number }) {
+function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: any; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const setSelection = useStudio(s => s.setSelection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
@@ -62,6 +62,7 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
+    onDragStart();
   };
   
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
@@ -77,6 +78,7 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
   
   const onUp = () => {
     dragRef.current = null;
+    onDragEnd();
   };
   
   return (
@@ -670,7 +672,7 @@ function LogoOverlay({ p }: { p: Project }) {
   );
 }
 
-function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: number; canvasH: number }) {
+function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: IconLayerType; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const iconDef = ICONS.find((i) => i.id === icon.iconId);
   if (!iconDef) return null;
 
@@ -695,6 +697,7 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
+    onDragStart();
   };
 
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
@@ -710,6 +713,7 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
 
   const onUp = () => {
     dragRef.current = null;
+    onDragEnd();
   };
 
   return (
@@ -774,7 +778,7 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
   );
 }
 
-function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: number; canvasH: number }) {
+function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { textbox: any; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const setSelection = useStudio(s => s.setSelection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
@@ -793,6 +797,7 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: textbox.x, oy: textbox.y };
+    onDragStart();
   };
   
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
@@ -808,6 +813,7 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
   
   const onUp = () => {
     dragRef.current = null;
+    onDragEnd();
   };
   
   // Background style
@@ -1072,13 +1078,13 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
             {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />)}
             <PaintCanvas p={p} depth="front" />
             {p.decos.map(deco => (
-              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             {p.icons.map(icon => (
-              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             {p.textboxes.map(textbox => (
-              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
