@@ -860,10 +860,11 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
   );
 }
 
-function DeviceNode({ d, guides, setGuides }: {
+function DeviceNode({ d, guides, setGuides, setDistanceInfo }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
   setGuides: (g: { v: number | null; h: number | null }) => void;
+  setDistanceInfo: (info: { left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null) => void;
 }) {
   const p = useStudio(s => s.project)!;
   const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
@@ -898,13 +899,21 @@ function DeviceNode({ d, guides, setGuides }: {
       if (gv) nx = tx - d.w / 2;
       if (gh) ny = ty - h / 2;
       setGuides({ v: gv ? tx : null, h: gh ? ty : null });
+      
+      // Calculate distances
+      const left = Math.round(nx);
+      const right = Math.round(p.canvas.w - (nx + d.w));
+      const top = Math.round(ny);
+      const bottom = Math.round(p.canvas.h - (ny + h));
+      setDistanceInfo({ left, right, top, bottom });
+      
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: nx, y: ny } : x) }), false);
     } else {
       const nw = clamp(drag.ow + dx, 90, p.canvas.w * 1.1);
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
     }
   };
-  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); };
+  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); setDistanceInfo(null); };
 
   const onDrop = (e: RDragEvent) => {
     e.preventDefault();
@@ -952,7 +961,7 @@ function DeviceNode({ d, guides, setGuides }: {
   );
 }
 
-export function StagePreview() {
+export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'zoom' | 'pan' }) {
   const p = useStudio(s => s.project)!;
   const zoom = useStudio(s => s.zoom);
   const setZoom = useStudio(s => s.setZoom);
@@ -960,6 +969,7 @@ export function StagePreview() {
   const selection = useStudio(s => s.selection);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+  const [distanceInfo, setDistanceInfo] = useState<{ left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null>(null);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -976,17 +986,36 @@ export function StagePreview() {
   const W = p.canvas.w * zoom, H = p.canvas.h * zoom;
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (toolMode === 'zoom') {
+      // Zoom in on click
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Calculate zoom center
+      const newZoom = zoom * 1.5;
+      setZoom(Math.min(newZoom, 8));
+    } else if (toolMode === 'select') {
+      setSelection({ kind: 'background' });
+    }
+  };
+
   return (
-    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ touchAction: 'none' }}>
+    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ 
+      touchAction: 'none',
+      cursor: toolMode === 'zoom' ? 'zoom-in' : toolMode === 'pan' ? 'grab' : 'default'
+    }}>
       <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
-          onPointerDown={() => setSelection({ kind: 'background' })}
+          onClick={handleCanvasClick}
+          onPointerDown={() => toolMode === 'select' && setSelection({ kind: 'background' })}
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
             <PaintCanvas p={p} depth="all" />
-            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
+            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} />)}
             <PaintCanvas p={p} depth="front" />
             {p.decos.map(deco => (
               <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
@@ -1005,6 +1034,32 @@ export function StagePreview() {
             )}
             {guides.h != null && (
               <div className="absolute left-0 right-0 pointer-events-none" style={{ top: guides.h, height: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
+            )}
+
+            {/* Distance indicators */}
+            {distanceInfo && (
+              <>
+                {distanceInfo.left !== undefined && (
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.left}px
+                  </div>
+                )}
+                {distanceInfo.right !== undefined && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.right}px
+                  </div>
+                )}
+                {distanceInfo.top !== undefined && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.top}px
+                  </div>
+                )}
+                {distanceInfo.bottom !== undefined && (
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.bottom}px
+                  </div>
+                )}
+              </>
             )}
 
             {p.devices.length === 0 && (

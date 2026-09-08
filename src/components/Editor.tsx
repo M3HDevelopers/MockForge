@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStudio } from '../store';
 import { makeThumbnail } from '../renderer';
 import { LeftPanel } from './LeftPanel';
@@ -9,7 +9,7 @@ import { GeneratePanel } from './GeneratePanel';
 import { ShortcutsModal } from './ShortcutsModal';
 import { clamp } from '../templates';
 import {
-  IcArrowL, IcDice, IcDownload, IcExport, IcFit, IcRedo, IcSave, IcStar, IcUndo, IcUpload, IcWand, IcZoomIn, IcZoomOut, LogoMark,
+  IcArrowL, IcDice, IcDownload, IcExport, IcFit, IcRedo, IcSave, IcStar, IcUndo, IcUpload, IcWand, IcZoomIn, IcZoomOut, LogoMark, IcEye,
 } from '../icons';
 
 export function Editor() {
@@ -38,6 +38,8 @@ export function Editor() {
   const exportMockup = useStudio(s => s.exportMockup);
   const importMockup = useStudio(s => s.importMockup);
   const mockupRef = useRef<HTMLInputElement>(null);
+  const [toolMode, setToolMode] = useState<'select' | 'zoom' | 'pan'>('select');
+  const [previewMode, setPreviewMode] = useState(false);
 
   const saveNow = useCallback(async (silent = false) => {
     const p = useStudio.getState().project;
@@ -77,7 +79,34 @@ export function Editor() {
           setSelection(null);
         }
       }
-      else if (e.key === 'Escape') setSelection(null);
+      else if (e.key === 'Escape') {
+        setSelection(null);
+        setToolMode('select');
+        setPreviewMode(false);
+      }
+      // Tool mode shortcuts
+      else if (e.key === 'z' && !mod) {
+        setToolMode(prev => prev === 'zoom' ? 'select' : 'zoom');
+      }
+      else if (e.key === 'h' && !mod) {
+        setToolMode(prev => prev === 'pan' ? 'select' : 'pan');
+      }
+      else if (e.key === 'p' && !mod) {
+        setPreviewMode(prev => !prev);
+      }
+      // Zoom shortcuts
+      else if (mod && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        setZoom(zoom * 1.2);
+      }
+      else if (mod && e.key === '-') {
+        e.preventDefault();
+        setZoom(zoom * 0.8);
+      }
+      else if (mod && e.key === '0') {
+        e.preventDefault();
+        setZoom(1);
+      }
       else if (e.key.startsWith('Arrow') && selection?.id) {
         e.preventDefault();
         
@@ -285,6 +314,34 @@ export function Editor() {
 
         <div className="w-px h-5 bg-line mx-1" />
 
+        {/* Tool Mode Buttons */}
+        <button 
+          className={`icon-btn ${toolMode === 'zoom' ? 'bg-acc/20 text-acc' : ''}`} 
+          onClick={() => setToolMode(toolMode === 'zoom' ? 'select' : 'zoom')}
+          title="Zoom Tool (Z) - Click to zoom in"
+        >
+          <IcZoomIn size={15} />
+        </button>
+        <button 
+          className={`icon-btn ${toolMode === 'pan' ? 'bg-acc/20 text-acc' : ''}`} 
+          onClick={() => setToolMode(toolMode === 'pan' ? 'select' : 'pan')}
+          title="Pan Tool (H) - Hold Space or click to pan"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/>
+            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+          </svg>
+        </button>
+        <button 
+          className={`icon-btn ${previewMode ? 'bg-acc/20 text-acc' : ''}`} 
+          onClick={() => setPreviewMode(!previewMode)}
+          title="Preview Mode (P) - Full screen preview"
+        >
+          <IcEye size={15} />
+        </button>
+
+        <div className="w-px h-5 bg-line mx-1" />
+
         <button className="btn btn-acc" onClick={() => setGenOpen(true)} title="Moods, locks, variations, favorites">
           <IcWand size={14} />
           <span>Design Engine</span>
@@ -313,24 +370,41 @@ export function Editor() {
         <ShortcutsModal />
       </div>
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        <LeftPanel />
-        <div className="flex-1 flex flex-col min-w-0 h-full">
-          <StagePreview />
-          <div className="h-9 shrink-0 border-t border-line2 bg-panel flex items-center justify-between px-3">
-            <span className="text-[10.5px] hidden md:block" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
-              drag to move · corner handle to resize · ctrl+scroll to zoom · ctrl+v paste screenshot
-            </span>
-            <div className="flex items-center gap-1">
-              <button className="icon-btn !w-7 !h-7" onClick={() => setZoom(zoom * 0.85)}><IcZoomOut size={13} /></button>
-              <span className="text-[10.5px] w-10 text-center" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-mut)' }}>{Math.round(zoom * 100)}%</span>
-              <button className="icon-btn !w-7 !h-7" onClick={() => setZoom(zoom * 1.18)}><IcZoomIn size={13} /></button>
-              <button className="icon-btn !w-7 !h-7" onClick={fitZoom} title="Fit to screen"><IcFit size={13} /></button>
+      {/* Preview Mode - Full Screen */}
+      {previewMode ? (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center" onClick={() => setPreviewMode(false)}>
+          <div className="relative" style={{ maxWidth: '95vw', maxHeight: '95vh' }}>
+            <StagePreview />
+          </div>
+          <button 
+            className="absolute top-4 right-4 btn"
+            onClick={() => setPreviewMode(false)}
+          >
+            Exit Preview (ESC)
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          <LeftPanel />
+          <div className="flex-1 flex flex-col min-w-0 h-full">
+            <StagePreview toolMode={toolMode} />
+            <div className="h-9 shrink-0 border-t border-line2 bg-panel flex items-center justify-between px-3">
+              <span className="text-[10.5px] hidden md:block" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+                {toolMode === 'zoom' ? '🔍 Zoom mode - Click to zoom in' : 
+                 toolMode === 'pan' ? '✋ Pan mode - Drag to pan canvas' :
+                 'drag to move · corner handle to resize · ctrl+scroll to zoom · ctrl+v paste screenshot'}
+              </span>
+              <div className="flex items-center gap-1">
+                <button className="icon-btn !w-7 !h-7" onClick={() => setZoom(zoom * 0.85)}><IcZoomOut size={13} /></button>
+                <span className="text-[10.5px] w-10 text-center" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-mut)' }}>{Math.round(zoom * 100)}%</span>
+                <button className="icon-btn !w-7 !h-7" onClick={() => setZoom(zoom * 1.18)}><IcZoomIn size={13} /></button>
+                <button className="icon-btn !w-7 !h-7" onClick={fitZoom} title="Fit to screen"><IcFit size={13} /></button>
+              </div>
             </div>
           </div>
+          <RightPanel />
         </div>
-        <RightPanel />
-      </div>
+      )}
 
       <ExportModal />
       <GeneratePanel />
