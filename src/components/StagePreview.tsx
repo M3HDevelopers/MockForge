@@ -998,8 +998,11 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
         addToSelection('device', d.id);
       }
     } else {
-      // Single select
-      setSelection({ kind: 'device', id: d.id, ids: [d.id] });
+      // If already selected, keep selection for dragging
+      if (!(selection?.kind === 'device' && selection.ids?.includes(d.id))) {
+        // Single select only if not already selected
+        setSelection({ kind: 'device', id: d.id, ids: [d.id] });
+      }
     }
     
     checkpoint();
@@ -1029,7 +1032,25 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
       const bottom = Math.round(p.canvas.h - (ny + h));
       setDistanceInfo({ left, right, top, bottom });
       
-      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: nx, y: ny } : x) }), false);
+      // Move all selected devices together
+      update(dd => {
+        const selectedIds = selection?.ids || [d.id];
+        const currentDevice = dd.devices.find(dev => dev.id === d.id);
+        if (!currentDevice) return dd;
+        
+        const offsetX = nx - currentDevice.x;
+        const offsetY = ny - currentDevice.y;
+        
+        return {
+          ...dd,
+          devices: dd.devices.map(x => {
+            if (selectedIds.includes(x.id)) {
+              return { ...x, x: x.x + offsetX, y: x.y + offsetY };
+            }
+            return x;
+          })
+        };
+      }, false);
     } else if (drag.mode === 'resize') {
       const nw = clamp(drag.ow + dx, 90, p.canvas.w * 1.1);
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
@@ -1056,7 +1077,16 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
   return (
     <div
       className="absolute cursor-move"
-      style={{ left: d.x, top: d.y, width: d.w, height: h, transform: `rotate(${d.tilt}deg)`, display: d.visible ? undefined : 'none', opacity: d.opacity ?? 1 }}
+      style={{ 
+        left: d.x, 
+        top: d.y, 
+        width: d.w, 
+        height: h, 
+        transform: `rotate(${d.tilt}deg)`, 
+        display: d.visible ? undefined : 'none', 
+        opacity: d.opacity ?? 1,
+        zIndex: d.z ?? p.devices.indexOf(d)
+      }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDragOver={(e) => { e.preventDefault(); setDropHot(true); }}
       onDragLeave={() => setDropHot(false)}
@@ -1119,6 +1149,7 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [marquee, setMarquee] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
@@ -1159,6 +1190,55 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
   const handlePanEnd = () => {
     setIsPanning(false);
   };
+
+  // Marquee selection handlers
+  const handleMarqueeStart = (e: React.MouseEvent) => {
+    if (toolMode !== 'select' || e.shiftKey) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    
+    setMarquee({ startX: x, startY: y, endX: x, endY: y });
+    
+    const handleMarqueeMove = (e: MouseEvent) => {
+      const x = (e.clientX - rect.left) / zoom;
+      const y = (e.clientY - rect.top) / zoom;
+      setMarquee(prev => prev ? { ...prev, endX: x, endY: y } : null);
+    };
+    
+    const handleMarqueeEnd = () => {
+      setMarquee(null);
+      document.removeEventListener('mousemove', handleMarqueeMove);
+      document.removeEventListener('mouseup', handleMarqueeEnd);
+    };
+    
+    document.addEventListener('mousemove', handleMarqueeMove);
+    document.addEventListener('mouseup', handleMarqueeEnd);
+  };
+
+  // Select devices within marquee
+  useEffect(() => {
+    if (!marquee) return;
+    
+    const minX = Math.min(marquee.startX, marquee.endX);
+    const maxX = Math.max(marquee.startX, marquee.endX);
+    const minY = Math.min(marquee.startY, marquee.endY);
+    const maxY = Math.max(marquee.startY, marquee.endY);
+    
+    const selectedDevices = p.devices.filter(d => {
+      const deviceRight = d.x + d.w;
+      const deviceBottom = d.y + (d.w / DEVICE_META[d.kind].aspect);
+      
+      // Check if device is within marquee
+      return d.x < maxX && deviceRight > minX && d.y < maxY && deviceBottom > minY;
+    });
+    
+    if (selectedDevices.length > 0) {
+      const ids = selectedDevices.map(d => d.id);
+      setSelection({ kind: 'device', id: ids[0], ids });
+    }
+  }, [marquee]);
 
   const W = p.canvas.w * zoom, H = p.canvas.h * zoom;
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
@@ -1229,6 +1309,7 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
             // Only select background if clicking directly on this div, not on child objects
             if (toolMode === 'select' && e.target === e.currentTarget) {
               setSelection({ kind: 'background' });
+              handleMarqueeStart(e as any);
             }
           }}
         >
@@ -1247,6 +1328,22 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
+            
+            {/* Marquee Selection Visual */}
+            {marquee && (
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: Math.min(marquee.startX, marquee.endX),
+                  top: Math.min(marquee.startY, marquee.endY),
+                  width: Math.abs(marquee.endX - marquee.startX),
+                  height: Math.abs(marquee.endY - marquee.startY),
+                  border: '2px dashed var(--color-acc)',
+                  background: 'rgba(255, 107, 61, 0.1)',
+                  zIndex: 9998
+                }}
+              />
+            )}
             
             {/* Advanced Grid - Canva-style distance guides for all object types */}
             {isDragging && selection && (() => {
