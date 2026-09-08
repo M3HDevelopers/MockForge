@@ -59,7 +59,7 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
   const x = deco.x * canvasW - size / 2;
   const y = deco.y * canvasH - size / 2;
   
-  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const dragRef = useRef<{ mode: 'move' | 'resize' | 'rotate'; sx: number; sy: number; ox: number; oy: number; os: number; startAngle?: number } | null>(null);
   
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     if (deco.locked) return;
@@ -78,19 +78,43 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
     
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
+    dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y, os: deco.scale };
     onDragStart();
   };
   
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (deco.locked) return;
     const drag = dragRef.current;
     if (!drag) return;
     const dx = (e.clientX - drag.sx) / zoom / canvasW;
     const dy = (e.clientY - drag.sy) / zoom / canvasH;
-    update(p => ({
-      ...p,
-      decos: p.decos.map(d => d.id === deco.id ? { ...d, x: drag.ox + dx, y: drag.oy + dy } : d)
-    }), false);
+    
+    if (drag.mode === 'move') {
+      update(p => ({
+        ...p,
+        decos: p.decos.map(d => d.id === deco.id ? { ...d, x: drag.ox + dx, y: drag.oy + dy } : d)
+      }), false);
+    } else if (drag.mode === 'resize') {
+      const delta = (dx + dy) / 2;
+      const newScale = Math.max(0.02, drag.os + delta);
+      update(p => ({
+        ...p,
+        decos: p.decos.map(d => d.id === deco.id ? { ...d, scale: newScale } : d)
+      }), false);
+    } else if (drag.mode === 'rotate') {
+      const centerX = deco.x * canvasW;
+      const centerY = deco.y * canvasH;
+      const mouseX = (e.clientX / zoom) - (canvasW / 2);
+      const mouseY = (e.clientY / zoom) - (canvasH / 2);
+      const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
+      const startAngle = drag.startAngle || 0;
+      const newRotation = deco.rotation + (angle - startAngle);
+      update(p => ({
+        ...p,
+        decos: p.decos.map(d => d.id === deco.id ? { ...d, rotation: newRotation } : d)
+      }), false);
+      drag.startAngle = angle;
+    }
   };
   
   const onUp = () => {
@@ -122,6 +146,48 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
       onPointerCancel={onUp}
     >
       <DecoShapeSVG deco={deco} size={size} />
+      
+      {/* Selection handles */}
+      {selected && !deco.locked && (
+        <>
+          {/* Corner resize handles */}
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nwse-resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y, os: deco.scale };
+            }}
+          />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nesw-resize" />
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nesw-resize" />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nwse-resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y, os: deco.scale };
+            }}
+          />
+          
+          {/* Rotation handle */}
+          <div className="absolute left-1/2 -top-8 -translate-x-1/2 w-4 h-4 bg-acc2 border-2 border-white rounded-full cursor-grab"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'rotate', sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y, os: deco.scale, startAngle: deco.rotation };
+            }}
+          />
+          
+          {/* Lock indicator */}
+          {deco.locked && (
+            <div className="absolute top-1 right-1 w-5 h-5 bg-panel2 border border-line rounded flex items-center justify-center">
+              <IcLock size={12} />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -708,7 +774,8 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
   const bgColor = icon.bgColor || '#ffffff';
   const bgPadding = size * 0.2;
 
-  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const dragRef = useRef<{ mode: 'move' | 'resize' | 'rotate'; sx: number; sy: number; ox: number; oy: number; os: number; startAngle?: number } | null>(null);
+  const updateIcon = useStudio(s => s.updateIcon);
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     if (icon.locked) return;
@@ -727,19 +794,37 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
     
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
+    dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y, os: icon.size };
     onDragStart();
   };
 
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (icon.locked) return;
     const drag = dragRef.current;
     if (!drag) return;
     const dx = (e.clientX - drag.sx) / zoom / canvasW;
     const dy = (e.clientY - drag.sy) / zoom / canvasH;
-    update(p => ({
-      ...p,
-      icons: p.icons.map(i => i.id === icon.id ? { ...i, x: drag.ox + dx, y: drag.oy + dy } : i)
-    }), false);
+    
+    if (drag.mode === 'move') {
+      update(p => ({
+        ...p,
+        icons: p.icons.map(i => i.id === icon.id ? { ...i, x: drag.ox + dx, y: drag.oy + dy } : i)
+      }), false);
+    } else if (drag.mode === 'resize') {
+      const delta = (dx + dy) / 2;
+      const newSize = Math.max(0.02, drag.os + delta);
+      updateIcon(icon.id, { size: newSize });
+    } else if (drag.mode === 'rotate') {
+      const centerX = icon.x * canvasW;
+      const centerY = icon.y * canvasH;
+      const mouseX = (e.clientX / zoom) - (canvasW / 2);
+      const mouseY = (e.clientY / zoom) - (canvasH / 2);
+      const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
+      const startAngle = drag.startAngle || 0;
+      const newRotation = icon.rotation + (angle - startAngle);
+      updateIcon(icon.id, { rotation: newRotation });
+      drag.startAngle = angle;
+    }
   };
 
   const onUp = () => {
@@ -805,6 +890,48 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
       >
         <path d={iconDef.d} />
       </svg>
+      
+      {/* Selection handles */}
+      {selected && !icon.locked && (
+        <>
+          {/* Corner resize handles */}
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nwse-resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y, os: icon.size };
+            }}
+          />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nesw-resize" />
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nesw-resize" />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border-2 border-acc rounded-sm cursor-nwse-resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y, os: icon.size };
+            }}
+          />
+          
+          {/* Rotation handle */}
+          <div className="absolute left-1/2 -top-8 -translate-x-1/2 w-4 h-4 bg-acc2 border-2 border-white rounded-full cursor-grab"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'rotate', sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y, os: icon.size, startAngle: icon.rotation };
+            }}
+          />
+          
+          {/* Lock indicator */}
+          {icon.locked && (
+            <div className="absolute top-1 right-1 w-5 h-5 bg-panel2 border border-line rounded flex items-center justify-center">
+              <IcLock size={12} />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -1673,6 +1800,22 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
                     y: t.y * p.canvas.h,
                     width: t.width * p.canvas.w,
                     height: t.fontSize * 1.5
+                  }));
+                }
+              } else if (selection.kind === 'canvasimage') {
+                const selectedImg = p.canvasImages?.find(img => img.id === selection.id);
+                if (selectedImg) {
+                  selectedObject = {
+                    x: selectedImg.x,
+                    y: selectedImg.y,
+                    width: selectedImg.width,
+                    height: selectedImg.height
+                  };
+                  otherObjects = (p.canvasImages || []).filter(img => img.id !== selection.id).map(img => ({
+                    x: img.x,
+                    y: img.y,
+                    width: img.width,
+                    height: img.height
                   }));
                 }
               }
