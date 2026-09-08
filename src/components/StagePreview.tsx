@@ -972,7 +972,7 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
   onDragEnd: () => void;
 }) {
   const p = useStudio(s => s.project)!;
-  const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
+  const selected = useStudio(s => s.selection?.kind === 'device' && (s.selection.id === d.id || s.selection.ids?.includes(d.id)));
   const setSelection = useStudio(s => s.setSelection);
   const addToSelection = useStudio(s => s.addToSelection);
   const selection = useStudio(s => s.selection);
