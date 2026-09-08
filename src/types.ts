@@ -14,11 +14,19 @@ export type PosPreset =
 export type BgStyle = 'plain' | 'studio' | 'architectural' | 'abstract' | 'grid' | 'editorial' | 'tech' | 'glass';
 export type LightType = 'none' | 'top' | 'bottom' | 'left' | 'right' | 'center' | 'ambient';
 export type Material = 'matte' | 'glossy' | 'glass' | 'metallic';
-export type DecoCat = 'geometric' | '3d' | 'abstract' | 'ui';
+export type DecoCat = 'geometric' | '3d' | 'abstract' | 'ui' | 'frame' | 'depth' | 'structure' | 'texture' | 'motion' | 'tech' | 'luxury' | 'soft';
 export type DecoPrim =
   | 'sphere' | 'ring' | 'disc' | 'blob' | 'ribbon' | 'dotgrid' | 'wave' | 'plus' | 'sparkle'
   | 'glasscard' | 'uipanel' | 'notification' | 'chart' | 'arc' | 'pill' | 'cube' | 'torus'
-  | 'line' | 'square' | 'triangle' | 'orbit';
+  | 'line' | 'square' | 'triangle' | 'orbit'
+  | 'glassorb' | 'chromering' | 'softsphere' | 'roundedcube' | 'glasscube' | 'floatingpill'
+  | 'metallicdisc' | 'torus3d' | 'glasstorus' | 'pyramid' | 'isocube' | 'wireframecube'
+  | 'hexframe' | 'octframe' | 'diamondframe' | 'doublearc' | 'spiral' | 'orbitlines' | 'halo'
+  | 'fluidribbon' | 'foldedribbon' | 'liquidblob' | 'pebble' | 'cutout' | 'halfmoon' | 'quartercircle'
+  | 'layeredwave' | 'fluidline' | 'dottedorbit' | 'dotcluster' | 'microgrid' | 'perspectivegrid'
+  | 'cross' | 'pluscluster' | 'slab' | 'layeredcards' | 'glasspanel' | 'frostedshape'
+  | 'pillcluster' | 'floatingtriangles' | 'polygonstack' | 'isostair' | 'cylinder' | 'cone'
+  | 'capsulestack' | 'flowergeo' | 'radiallines' | 'cornerbrackets' | 'shadowblob';
 export type DecoDepth = 'back' | 'front';
 export type Mood =
   | 'auto' | 'minimal' | 'premium' | 'creative' | 'developer' | 'dark' | 'light'

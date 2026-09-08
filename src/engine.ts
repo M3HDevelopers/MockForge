@@ -141,37 +141,90 @@ function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: num
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-/* ---------------- decoration placement (constraint-aware) ---------------- */
+/* ---------------- decoration placement (constraint-aware, role-based) ---------------- */
 export function placeDecos(p: Project, rnd: () => number, bias: MoodBias, count: number): DecoLayer[] {
   const boxes = p.devices.filter(d => d.visible).map(deviceBox);
   const { w: cw, h: ch } = p.canvas;
-  const pool = DECO_PRESETS.filter(d => bias.decoCats.includes(d.cat));
+  
+  // Role-based selection: pick diverse roles for professional composition
+  const roles = ['frame', 'depth', 'structure', 'texture', 'motion', 'tech', 'luxury', 'soft'];
+  const selectedRoles: string[] = [];
+  
+  // Always include at least 2 different roles for variety
+  const minRoles = Math.min(3, count);
+  while (selectedRoles.length < minRoles) {
+    const role = pick(rnd, roles);
+    if (!selectedRoles.includes(role)) selectedRoles.push(role);
+  }
+  
+  // Fill remaining with random roles
+  while (selectedRoles.length < count) {
+    selectedRoles.push(pick(rnd, roles));
+  }
+  
   const out: DecoLayer[] = [];
   let attempts = 0;
-  while (out.length < count && attempts < count * 30) {
+  
+  for (const role of selectedRoles) {
+    if (attempts >= count * 30) break;
+    
+    // Get presets for this role
+    const rolePresets = DECO_PRESETS.filter(d => d.role === role);
+    if (rolePresets.length === 0) continue;
+    
+    const preset = pick(rnd, rolePresets);
     attempts++;
-    const preset = pick(rnd, pool.length ? pool : DECO_PRESETS);
-    // keep near edges / corners so devices stay the hero
+    
+    // Position based on role
+    let x: number, y: number;
     const corner = Math.floor(rnd() * 4);
     const m = 0.2;
-    let x: number, y: number;
-    if (corner === 0) { x = rngRange(rnd, 0.02, m); y = rngRange(rnd, 0.05, 0.95); }
-    else if (corner === 1) { x = rngRange(rnd, 1 - m, 0.98); y = rngRange(rnd, 0.05, 0.95); }
-    else if (corner === 2) { x = rngRange(rnd, 0.05, 0.95); y = rngRange(rnd, 0.02, m * 0.8); }
-    else { x = rngRange(rnd, 0.05, 0.95); y = rngRange(rnd, 1 - m * 0.8, 0.98); }
-    const scale = preset.cat === 'ui' ? rngRange(rnd, 0.05, 0.09) : rngRange(rnd, 0.04, 0.13);
+    
+    if (role === 'frame') {
+      // Frames go near edges to frame devices
+      if (corner === 0) { x = rngRange(rnd, 0.05, 0.15); y = rngRange(rnd, 0.1, 0.3); }
+      else if (corner === 1) { x = rngRange(rnd, 0.85, 0.95); y = rngRange(rnd, 0.1, 0.3); }
+      else if (corner === 2) { x = rngRange(rnd, 0.05, 0.15); y = rngRange(rnd, 0.7, 0.9); }
+      else { x = rngRange(rnd, 0.85, 0.95); y = rngRange(rnd, 0.7, 0.9); }
+    } else if (role === 'depth') {
+      // Depth objects go behind devices
+      x = rngRange(rnd, 0.1, 0.9);
+      y = rngRange(rnd, 0.1, 0.9);
+    } else if (role === 'texture') {
+      // Textures spread across background
+      x = rngRange(rnd, 0.05, 0.95);
+      y = rngRange(rnd, 0.05, 0.95);
+    } else {
+      // Other roles go near edges
+      if (corner === 0) { x = rngRange(rnd, 0.02, m); y = rngRange(rnd, 0.05, 0.95); }
+      else if (corner === 1) { x = rngRange(rnd, 1 - m, 0.98); y = rngRange(rnd, 0.05, 0.95); }
+      else if (corner === 2) { x = rngRange(rnd, 0.05, 0.95); y = rngRange(rnd, 0.02, m * 0.8); }
+      else { x = rngRange(rnd, 0.05, 0.95); y = rngRange(rnd, 1 - m * 0.8, 0.98); }
+    }
+    
+    // Scale based on role
+    let scale: number;
+    if (role === 'texture') scale = rngRange(rnd, 0.08, 0.15);
+    else if (role === 'frame') scale = rngRange(rnd, 0.1, 0.18);
+    else if (role === 'depth') scale = rngRange(rnd, 0.06, 0.12);
+    else scale = rngRange(rnd, 0.05, 0.13);
+    
     const r = scale * Math.min(cw, ch);
     const box = { x: x * cw - r, y: y * ch - r, w: r * 2, h: r * 2 };
-    if (boxes.some(b => overlaps(box, b))) continue; // constraint: never cover devices
+    
+    // Constraint: never cover devices (except for texture which can be subtle)
+    if (role !== 'texture' && boxes.some(b => overlaps(box, b))) continue;
+    
     out.push({
       id: uid(), preset: preset.id, x, y, scale,
       rotation: Math.floor(rngRange(rnd, -24, 24)),
       opacity: rngRange(rnd, 0.35, 0.85),
       blur: rnd() > 0.7 ? Math.floor(rngRange(rnd, 1, 5)) : 0,
-      depth: (rnd() > 0.6 ? 'front' : 'back') as DecoDepth,
+      depth: (role === 'depth' ? 'back' : rnd() > 0.6 ? 'front' : 'back') as DecoDepth,
       hue: null, seed: Math.floor(rnd() * 1e9),
     });
   }
+  
   return out;
 }
 

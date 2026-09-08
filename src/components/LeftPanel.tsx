@@ -383,9 +383,9 @@ function DecorTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
-  const [cat, setCat] = useState<'all' | 'geometric' | '3d' | 'abstract' | 'ui'>('all');
+  const [role, setRole] = useState<string>('all');
 
-  const list = DECO_PRESETS.filter(d => cat === 'all' || d.cat === cat);
+  const list = DECO_PRESETS.filter(d => role === 'all' || d.role === role);
   const add = (presetId: string) => {
     checkpoint();
     update(p => ({
@@ -405,15 +405,15 @@ function DecorTab() {
     <>
       <Section title={`Decorations · ${DECO_PRESETS.length}`}>
         <div className="flex flex-wrap gap-1 mb-2.5">
-          {(['all', 'geometric', '3d', 'abstract', 'ui'] as const).map(c => (
-            <button key={c} onClick={() => setCat(c)} className={`chip capitalize !text-[10px] ${cat === c ? 'on' : ''}`}>{c}</button>
+          {(['all', 'frame', 'depth', 'structure', 'texture', 'motion', 'tech', 'luxury', 'soft'] as const).map(r => (
+            <button key={r} onClick={() => setRole(r)} className={`chip capitalize !text-[10px] ${role === r ? 'on' : ''}`}>{r}</button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 max-h-[400px] overflow-y-auto">
           {list.map(d => (
             <button key={d.id} onClick={() => add(d.id)} className="p-2 rounded-lg border border-line bg-panel hover:border-acc/50 hover:bg-panel2 transition-all text-left group">
               <div className="text-[11px] font-medium group-hover:text-acc transition-colors">{d.label}</div>
-              <div className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.cat}</div>
+              <div className="text-[9px]" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>{d.role}</div>
             </button>
           ))}
         </div>
