@@ -45,10 +45,12 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
 
 function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: any; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
-  const selected = useStudio(s => s.selection?.kind === 'deco' && s.selection.id === deco.id);
+  const selected = useStudio(s => s.selection?.kind === 'deco' && (s.selection.id === deco.id || s.selection.ids?.includes(deco.id)));
   
   const size = deco.scale * Math.min(canvasW, canvasH);
   const x = deco.x * canvasW - size / 2;
@@ -58,7 +60,18 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
   
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'deco', id: deco.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'deco' && selection.ids?.includes(deco.id)) {
+        useStudio.getState().removeFromSelection('deco', deco.id);
+      } else {
+        addToSelection('deco', deco.id);
+      }
+    } else {
+      setSelection({ kind: 'deco', id: deco.id, ids: [deco.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
@@ -677,10 +690,12 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
   if (!iconDef) return null;
 
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
-  const selected = useStudio(s => s.selection?.kind === 'icon' && s.selection.id === icon.id);
+  const selected = useStudio(s => s.selection?.kind === 'icon' && (s.selection.id === icon.id || s.selection.ids?.includes(icon.id)));
   
   const size = icon.size * Math.min(canvasW, canvasH);
   const x = icon.x * canvasW - size / 2;
@@ -693,7 +708,18 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'icon', id: icon.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'icon' && selection.ids?.includes(icon.id)) {
+        useStudio.getState().removeFromSelection('icon', icon.id);
+      } else {
+        addToSelection('icon', icon.id);
+      }
+    } else {
+      setSelection({ kind: 'icon', id: icon.id, ids: [icon.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
@@ -780,10 +806,12 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
 
 function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { textbox: any; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
-  const selected = useStudio(s => s.selection?.kind === 'textbox' && s.selection.id === textbox.id);
+  const selected = useStudio(s => s.selection?.kind === 'textbox' && (s.selection.id === textbox.id || s.selection.ids?.includes(textbox.id)));
   
   const x = textbox.x * canvasW;
   const y = textbox.y * canvasH;
@@ -793,7 +821,18 @@ function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { t
   
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'textbox', id: textbox.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'textbox' && selection.ids?.includes(textbox.id)) {
+        useStudio.getState().removeFromSelection('textbox', textbox.id);
+      } else {
+        addToSelection('textbox', textbox.id);
+      }
+    } else {
+      setSelection({ kind: 'textbox', id: textbox.id, ids: [textbox.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: textbox.x, oy: textbox.y };
@@ -814,6 +853,36 @@ function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { t
   const onUp = () => {
     dragRef.current = null;
     onDragEnd();
+  };
+  
+  // Double-click to edit
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(textbox.text);
+  
+  const onDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditText(textbox.text);
+  };
+  
+  const onFinishEdit = () => {
+    setIsEditing(false);
+    if (editText !== textbox.text) {
+      update(p => ({
+        ...p,
+        textboxes: p.textboxes.map(t => t.id === textbox.id ? { ...t, text: editText } : t)
+      }), false);
+    }
+  };
+  
+  const onEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onFinishEdit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditText(textbox.text);
+    }
   };
   
   // Background style
@@ -849,20 +918,47 @@ function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { t
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onDoubleClick={onDoubleClick}
     >
-      <div
-        style={{
-          fontFamily: textbox.fontFamily,
-          fontSize: textbox.fontSize,
-          fontWeight: textbox.fontWeight,
-          color: textbox.color,
-          textAlign: textbox.align,
-          lineHeight: 1.4,
-          wordWrap: 'break-word',
-        }}
-      >
-        {textbox.text}
-      </div>
+      {isEditing ? (
+        <textarea
+          autoFocus
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onBlur={onFinishEdit}
+          onKeyDown={onEditKeyDown}
+          style={{
+            fontFamily: textbox.fontFamily,
+            fontSize: textbox.fontSize,
+            fontWeight: textbox.fontWeight,
+            color: textbox.color,
+            textAlign: textbox.align,
+            lineHeight: 1.4,
+            wordWrap: 'break-word',
+            width: '100%',
+            minHeight: textbox.fontSize * 1.4,
+            background: 'transparent',
+            border: '1px dashed var(--color-acc)',
+            outline: 'none',
+            resize: 'none',
+            padding: 0,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            fontFamily: textbox.fontFamily,
+            fontSize: textbox.fontSize,
+            fontWeight: textbox.fontWeight,
+            color: textbox.color,
+            textAlign: textbox.align,
+            lineHeight: 1.4,
+            wordWrap: 'break-word',
+          }}
+        >
+          {textbox.text}
+        </div>
+      )}
     </div>
   );
 }
@@ -878,6 +974,8 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
   const p = useStudio(s => s.project)!;
   const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
@@ -885,11 +983,25 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
   const [dropHot, setDropHot] = useState(false);
   const asset = p.assets.find(a => a.id === d.assetId);
   const h = d.w / DEVICE_META[d.kind].aspect;
-  const dragRef = useRef<{ mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number } | null>(null);
+  const dragRef = useRef<{ mode: 'move' | 'resize' | 'rotate'; sx: number; sy: number; ox: number; oy: number; ow: number; startAngle?: number } | null>(null);
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'device', id: d.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'device' && selection.ids?.includes(d.id)) {
+        // If already selected, remove from selection
+        useStudio.getState().removeFromSelection('device', d.id);
+      } else {
+        // Add to selection
+        addToSelection('device', d.id);
+      }
+    } else {
+      // Single select
+      setSelection({ kind: 'device', id: d.id, ids: [d.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
@@ -918,9 +1030,18 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
       setDistanceInfo({ left, right, top, bottom });
       
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: nx, y: ny } : x) }), false);
-    } else {
+    } else if (drag.mode === 'resize') {
       const nw = clamp(drag.ow + dx, 90, p.canvas.w * 1.1);
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
+    } else if (drag.mode === 'rotate') {
+      // Calculate rotation angle
+      const centerX = d.x + d.w / 2;
+      const centerY = d.y + h / 2;
+      const currentAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+      const startAngle = drag.startAngle || 0;
+      const newTilt = d.tilt + (currentAngle - startAngle);
+      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, tilt: newTilt } : x) }), false);
+      drag.startAngle = currentAngle;
     }
   };
   const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); setDistanceInfo(null); onDragEnd(); };
@@ -963,6 +1084,21 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDrag
               checkpoint();
               (e.target as HTMLElement).setPointerCapture(e.pointerId);
               dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
+            }}
+          />
+          {/* Rotation handle */}
+          <div
+            className="absolute"
+            style={{ left: '50%', top: -35, transform: 'translateX(-50%)', width: 18, height: 18, background: 'var(--color-acc2)', border: '2.5px solid #101114', borderRadius: '50%', cursor: 'grab', zIndex: 100 }}
+            title="Rotate"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              const centerX = d.x + d.w / 2;
+              const centerY = d.y + h / 2;
+              const startAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+              dragRef.current = { mode: 'rotate', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w, startAngle };
             }}
           />
         </>

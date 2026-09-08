@@ -185,6 +185,9 @@ interface StudioState {
   save: (silent?: boolean) => void;
   setZoom: (z: number) => void;
   setSelection: (s: Selection | null) => void;
+  addToSelection: (kind: Selection['kind'], id: string) => void;
+  removeFromSelection: (kind: Selection['kind'], id: string) => void;
+  clearSelection: () => void;
   setExportOpen: (v: boolean) => void;
   trackExport: () => void;
 }
@@ -767,16 +770,26 @@ export const useStudio = create<StudioState>((set, get) => ({
     }
   },
 
-  save: (silent = false) => {
+  save: async (silent = false) => {
     const { project } = get();
     if (!project) return;
     set({ saving: true });
+    
+    // Generate thumbnail
+    let thumbnail = project.thumbnail;
+    try {
+      thumbnail = await makeThumbnail(project, 400);
+    } catch (e) {
+      console.error('Failed to generate thumbnail:', e);
+    }
+    
+    const projectWithThumb = { ...project, thumbnail };
     const next = get().projects.some(x => x.id === project.id)
-      ? get().projects.map(x => x.id === project.id ? { ...project, thumbnail: x.thumbnail } : x)
-      : [project, ...get().projects];
+      ? get().projects.map(x => x.id === project.id ? projectWithThumb : x)
+      : [projectWithThumb, ...get().projects];
     const ok = persist(next);
     if (ok) {
-      set(s => ({ projects: next, dirty: false, savedAt: Date.now(), saving: false, project: s.project ? { ...s.project } : null }));
+      set(s => ({ projects: next, dirty: false, savedAt: Date.now(), saving: false, project: s.project ? { ...projectWithThumb } : null }));
       if (!silent) get().toast('Project saved');
     } else {
       set({ saving: false });
@@ -786,6 +799,33 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   setZoom: (z) => set({ zoom: clamp(z, 0.1, 2) }),
   setSelection: (sel) => set({ selection: sel }),
+  
+  addToSelection: (kind, id) => {
+    const { selection } = get();
+    if (!selection) {
+      set({ selection: { kind, id, ids: [id] } });
+    } else if (selection.kind === kind) {
+      const ids = selection.ids || [selection.id!];
+      if (!ids.includes(id)) {
+        set({ selection: { ...selection, ids: [...ids, id], id: ids[0] } });
+      }
+    }
+  },
+  
+  removeFromSelection: (kind, id) => {
+    const { selection } = get();
+    if (!selection) return;
+    if (selection.kind === kind) {
+      const ids = (selection.ids || [selection.id!]).filter(i => i !== id);
+      if (ids.length === 0) {
+        set({ selection: null });
+      } else {
+        set({ selection: { ...selection, ids, id: ids[0] } });
+      }
+    }
+  },
+  
+  clearSelection: () => set({ selection: null }),
   setExportOpen: (v) => set({ exportOpen: v }),
 
   trackExport: () => {

@@ -35,6 +35,7 @@ export function Editor() {
   const toast = useStudio(s => s.toast);
   const setGenOpen = useStudio(s => s.setGenOpen);
   const favorite = useStudio(s => s.favorite);
+  const favorites = useStudio(s => s.favorites);
   const exportMockup = useStudio(s => s.exportMockup);
   const importMockup = useStudio(s => s.importMockup);
   const mockupRef = useRef<HTMLInputElement>(null);
@@ -367,7 +368,13 @@ export function Editor() {
         </button>
 
         <div className="w-px h-5 bg-line mx-1" />
-        <button className="icon-btn" title="Save to favorites" onClick={() => void favorite()}><IcStar size={15} /></button>
+        <button 
+          className={`icon-btn ${favorites.some(f => f.label === project.name) ? 'text-gold' : ''}`}
+          title={favorites.some(f => f.label === project.name) ? 'Already in favorites' : 'Save to favorites'}
+          onClick={() => void favorite()}
+        >
+          <IcStar size={15} />
+        </button>
         <button className="icon-btn" title="Download .mockup project file" onClick={exportMockup}><IcDownload size={15} /></button>
         <button className="icon-btn" title="Import .mockup project file" onClick={() => mockupRef.current?.click()}><IcUpload size={15} /></button>
         <input

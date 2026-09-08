@@ -253,6 +253,7 @@ export interface Project {
 export interface Selection {
   kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon' | 'textbox';
   id?: string;
+  ids?: string[]; // Multi-select support
 }
 
 export interface Toast {
