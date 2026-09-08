@@ -1060,7 +1060,12 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
           onClick={handleCanvasClick}
-          onPointerDown={() => toolMode === 'select' && setSelection({ kind: 'background' })}
+          onPointerDown={(e) => {
+            // Only select background if clicking directly on canvas, not on objects
+            if (toolMode === 'select' && e.target === e.currentTarget) {
+              setSelection({ kind: 'background' });
+            }
+          }}
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
             <PaintCanvas p={p} depth="all" />
@@ -1078,29 +1083,97 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
             
-            {/* Advanced Grid - Canva-style distance guides */}
-            {selection?.kind === 'device' && (() => {
-              const selectedDevice = p.devices.find(d => d.id === selection.id);
-              if (!selectedDevice) return null;
-              const selectedH = selectedDevice.w / DEVICE_META[selectedDevice.kind].aspect;
+            {/* Advanced Grid - Canva-style distance guides for all object types */}
+            {isDragging && selection && (() => {
+              let selectedObject = null;
+              let otherObjects: Array<{x: number; y: number; width: number; height: number}> = [];
+
+              if (selection.kind === 'device') {
+                const selectedDevice = p.devices.find(d => d.id === selection.id);
+                if (selectedDevice) {
+                  const selectedH = selectedDevice.w / DEVICE_META[selectedDevice.kind].aspect;
+                  selectedObject = {
+                    x: selectedDevice.x,
+                    y: selectedDevice.y,
+                    width: selectedDevice.w,
+                    height: selectedH
+                  };
+                  otherObjects = p.devices.filter(d => d.id !== selection.id).map(d => ({
+                    x: d.x,
+                    y: d.y,
+                    width: d.w,
+                    height: d.w / DEVICE_META[d.kind].aspect
+                  }));
+                }
+              } else if (selection.kind === 'icon') {
+                const selectedIcon = p.icons.find(i => i.id === selection.id);
+                if (selectedIcon) {
+                  const size = selectedIcon.size * Math.min(p.canvas.w, p.canvas.h);
+                  selectedObject = {
+                    x: selectedIcon.x * p.canvas.w - size / 2,
+                    y: selectedIcon.y * p.canvas.h - size / 2,
+                    width: size,
+                    height: size
+                  };
+                  otherObjects = p.icons.filter(i => i.id !== selection.id).map(i => {
+                    const s = i.size * Math.min(p.canvas.w, p.canvas.h);
+                    return {
+                      x: i.x * p.canvas.w - s / 2,
+                      y: i.y * p.canvas.h - s / 2,
+                      width: s,
+                      height: s
+                    };
+                  });
+                }
+              } else if (selection.kind === 'deco') {
+                const selectedDeco = p.decos.find(d => d.id === selection.id);
+                if (selectedDeco) {
+                  const size = selectedDeco.scale * Math.min(p.canvas.w, p.canvas.h);
+                  selectedObject = {
+                    x: selectedDeco.x * p.canvas.w - size / 2,
+                    y: selectedDeco.y * p.canvas.h - size / 2,
+                    width: size,
+                    height: size
+                  };
+                  otherObjects = p.decos.filter(d => d.id !== selection.id).map(d => {
+                    const s = d.scale * Math.min(p.canvas.w, p.canvas.h);
+                    return {
+                      x: d.x * p.canvas.w - s / 2,
+                      y: d.y * p.canvas.h - s / 2,
+                      width: s,
+                      height: s
+                    };
+                  });
+                }
+              } else if (selection.kind === 'textbox') {
+                const selectedTextbox = p.textboxes.find(t => t.id === selection.id);
+                if (selectedTextbox) {
+                  const estimatedHeight = selectedTextbox.fontSize * 1.5; // Estimate height based on font size
+                  selectedObject = {
+                    x: selectedTextbox.x * p.canvas.w,
+                    y: selectedTextbox.y * p.canvas.h,
+                    width: selectedTextbox.width * p.canvas.w,
+                    height: estimatedHeight
+                  };
+                  otherObjects = p.textboxes.filter(t => t.id !== selection.id).map(t => ({
+                    x: t.x * p.canvas.w,
+                    y: t.y * p.canvas.h,
+                    width: t.width * p.canvas.w,
+                    height: t.fontSize * 1.5
+                  }));
+                }
+              }
+
+              if (!selectedObject) return null;
+
               return (
                 <AdvancedGrid 
                   canvasWidth={p.canvas.w}
                   canvasHeight={p.canvas.h}
                   zoom={zoom}
                   isDragging={isDragging}
-                  selectedObject={{
-                    x: selectedDevice.x,
-                    y: selectedDevice.y,
-                    width: selectedDevice.w,
-                    height: selectedH
-                  }}
-                  otherObjects={p.devices.filter(d => d.id !== selection.id).map(d => ({
-                    x: d.x,
-                    y: d.y,
-                    width: d.w,
-                    height: d.w / DEVICE_META[d.kind].aspect
-                  }))}
+                  selectedObject={selectedObject}
+                  otherObjects={otherObjects}
                 />
               );
             })()}

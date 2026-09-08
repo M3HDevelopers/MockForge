@@ -85,23 +85,28 @@ export function ThemePanel() {
     applyTheme(newVariation);
   };
 
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isFloating) return;
+    e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
-    const rect = dragRef.current?.getBoundingClientRect();
-    if (rect) {
-      setPosition({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
-    }
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: position.x,
+      posY: position.y,
+    };
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
     setPosition({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
+      x: dragStartRef.current.posX + dx,
+      y: dragStartRef.current.posY + dy,
     });
   };
 
@@ -281,18 +286,47 @@ export function ThemePanel() {
     return (
       <div
         ref={dragRef}
-        className="fixed z-50 rounded-lg shadow-2xl border-2"
+        className="fixed z-[100] rounded-lg shadow-2xl border-2 overflow-hidden"
         style={{
           left: position.x,
           top: position.y,
-          width: 320,
+          width: 340,
+          maxHeight: '80vh',
           backgroundColor: 'var(--color-panel)',
-          borderColor: 'var(--color-line)',
-          cursor: isDragging ? 'grabbing' : 'grab',
+          borderColor: 'var(--color-acc)',
+          cursor: isDragging ? 'grabbing' : 'default',
         }}
-        onMouseDown={handleMouseDown}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4">
+        {/* Drag Handle */}
+        <div 
+          className="px-4 py-2 border-b cursor-move select-none"
+          style={{ 
+            backgroundColor: 'var(--color-panel2)',
+            borderColor: 'var(--color-line)'
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold" style={{ color: 'var(--color-fg)' }}>
+              Smart Theme Panel
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFloating(false);
+              }}
+              className="icon-btn !w-6 !h-6"
+              title="Dock panel"
+            >
+              <IcLock size={12} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 40px)' }}>
           {content}
         </div>
       </div>
