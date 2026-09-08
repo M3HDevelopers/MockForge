@@ -448,7 +448,7 @@ export function Editor() {
       {commandPaletteOpen && (
         <CommandPalette onClose={() => setCommandPaletteOpen(false)} />
       )}
-      {project.devices.length === 0 && project.assets.length === 0 && (
+      {project.devices.length === 0 && project.assets.length === 0 && (!project.canvasImages || project.canvasImages.length === 0) && (
         <FirstRunHint onPick={() => toast('Add a device or drop a screenshot to begin', 'info')} />
       )}
     </div>

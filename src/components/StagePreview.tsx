@@ -1012,23 +1012,37 @@ function CanvasImageLayer({ img, project, onDragStart, onDragEnd }: {
     if (img.locked) return;
     const drag = dragRef.current;
     if (!drag) return;
-    const dx = (e.clientX - drag.sx) / zoom;
-    const dy = (e.clientY - drag.sy) / zoom;
+    
+    // Get canvas container for proper coordinate calculation
+    const canvasContainer = e.currentTarget.parentElement?.parentElement;
+    if (!canvasContainer) return;
+    
+    const rect = canvasContainer.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / zoom;
+    const mouseY = (e.clientY - rect.top) / zoom;
+    const startX = (drag.sx - rect.left) / zoom;
+    const startY = (drag.sy - rect.top) / zoom;
+    
+    const dx = mouseX - startX;
+    const dy = mouseY - startY;
     
     if (drag.mode === 'move') {
       const nx = drag.ox + dx;
       const ny = drag.oy + dy;
       updateCanvasImage(img.id, { x: nx, y: ny });
     } else if (drag.mode === 'resize') {
+      // Fix inverted resize - top-left should shrink when dragging up-left
       const nw = Math.max(50, drag.ow + dx);
       const nh = Math.max(50, drag.oh + dy);
       updateCanvasImage(img.id, { width: nw, height: nh });
     } else if (drag.mode === 'rotate') {
+      // Fix rotation - should rotate based on horizontal movement, not vertical
       const centerX = img.x + img.width / 2;
       const centerY = img.y + img.height / 2;
-      const currentAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+      const currentAngle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
       const startAngle = drag.startAngle || 0;
-      const newRotation = img.rotation + (currentAngle - startAngle);
+      const deltaAngle = currentAngle - startAngle;
+      const newRotation = img.rotation + deltaAngle;
       updateCanvasImage(img.id, { rotation: newRotation });
       drag.startAngle = currentAngle;
     }

@@ -200,6 +200,105 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
           </div>
         </>
       )}
+
+      {selection.kind === 'canvasimage' && (
+        <>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const img = project.canvasImages?.find(i => i.id === selection.id);
+              if (img) {
+                useStudio.getState().updateCanvasImage(selection.id, { locked: !img.locked });
+                toast(img.locked ? 'Image unlocked' : 'Image locked');
+              }
+            }
+            onClose();
+          }}>
+            {project.canvasImages?.find(i => i.id === selection.id)?.locked ? (
+              <>
+                <IcUnlock size={14} />
+                <span>Unlock</span>
+              </>
+            ) : (
+              <>
+                <IcLock size={14} />
+                <span>Lock</span>
+              </>
+            )}
+          </div>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const img = project.canvasImages?.find(i => i.id === selection.id);
+              if (img) {
+                useStudio.getState().updateCanvasImage(selection.id, { visible: !img.visible });
+                toast(img.visible ? 'Image hidden' : 'Image shown');
+              }
+            }
+            onClose();
+          }}>
+            {project.canvasImages?.find(i => i.id === selection.id)?.visible ? (
+              <>
+                <IcEyeOff size={14} />
+                <span>Hide</span>
+              </>
+            ) : (
+              <>
+                <IcEye size={14} />
+                <span>Show</span>
+              </>
+            )}
+          </div>
+          <div className="h-px bg-line my-1" />
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const img = project.canvasImages?.find(i => i.id === selection.id);
+              if (img) {
+                useStudio.getState().updateCanvasImage(selection.id, { zIndex: (img.zIndex || 0) + 1 });
+                toast('Brought forward');
+              }
+            }
+            onClose();
+          }}>
+            <IcArrowR size={14} className="rotate-90" />
+            <span>Bring Forward</span>
+            <span className="ml-auto text-[10px]" style={{ color: 'var(--color-dim)' }}>Ctrl+]</span>
+          </div>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const img = project.canvasImages?.find(i => i.id === selection.id);
+              if (img) {
+                useStudio.getState().updateCanvasImage(selection.id, { zIndex: Math.max(0, (img.zIndex || 0) - 1) });
+                toast('Sent backward');
+              }
+            }
+            onClose();
+          }}>
+            <IcArrowL size={14} className="rotate-90" />
+            <span>Send Backward</span>
+            <span className="ml-auto text-[10px]" style={{ color: 'var(--color-dim)' }}>Ctrl+[</span>
+          </div>
+          <div className="h-px bg-line my-1" />
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              useStudio.getState().removeCanvasImage(selection.id);
+              toast('Image deleted');
+            }
+            onClose();
+          }}>
+            <IcTrash size={14} />
+            <span>Delete Image</span>
+            <span className="ml-auto text-[10px]" style={{ color: 'var(--color-dim)' }}>Del</span>
+          </div>
+          <div className={menuItemClass} onClick={() => { toast('Properties shown in right panel'); onClose(); }}>
+            <IcType size={14} />
+            <span>Edit Properties →</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
