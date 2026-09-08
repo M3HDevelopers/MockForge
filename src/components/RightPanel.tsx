@@ -26,7 +26,7 @@ export function RightPanel() {
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-y-auto bg-ink min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden bg-ink min-h-0">
         {device ? <DeviceProps d={device} />
           : icon ? <IconProps i={icon} />
           : deco ? <DecoProps d={deco} />
