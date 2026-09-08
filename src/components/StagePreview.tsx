@@ -148,8 +148,8 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
         ].filter(Boolean).join(' ') || undefined,
         pointerEvents: 'auto',
         zIndex: deco.zIndex ?? 1,
-        outline: selected ? '2px solid var(--color-acc)' : 'none',
-        outlineOffset: selected ? '2px' : '0',
+        border: selected ? '2px solid var(--color-acc)' : 'none',
+        boxSizing: 'border-box',
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -863,8 +863,8 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
         transform: `rotate(${icon.rotation}deg)`,
         opacity: icon.opacity,
         zIndex: icon.zIndex ?? 500,
-        outline: selected ? '2px solid var(--color-acc)' : 'none',
-        outlineOffset: selected ? '2px' : '0',
+        border: selected ? '2px solid var(--color-acc)' : 'none',
+        boxSizing: 'border-box',
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}

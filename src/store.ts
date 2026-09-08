@@ -678,37 +678,28 @@ export const useStudio = create<StudioState>((set, get) => ({
     const cur = get().project;
     if (!cur) return;
 
-    // Create unified array of all objects with their types and current z-indices
-    const allObjects: Array<{ type: string; id: string; zIndex: number; data: any }> = [];
+    // Create unified array of all objects
+    const allObjects: Array<{ type: string; id: string; data: any }> = [];
 
-    // Add devices
-    cur.devices.forEach((d, idx) => {
-      allObjects.push({ type: 'device', id: d.id, zIndex: d.z ?? idx, data: d });
-    });
+    // Add all objects (order doesn't matter, we'll sort by actual z-index)
+    cur.devices.forEach(d => allObjects.push({ type: 'device', id: d.id, data: d }));
+    cur.icons.forEach(icon => allObjects.push({ type: 'icon', id: icon.id, data: icon }));
+    cur.decos.forEach(deco => allObjects.push({ type: 'deco', id: deco.id, data: deco }));
+    cur.textboxes.forEach(tb => allObjects.push({ type: 'textbox', id: tb.id, data: tb }));
+    (cur.canvasImages || []).forEach(img => allObjects.push({ type: 'canvasimage', id: img.id, data: img }));
 
-    // Add icons
-    cur.icons.forEach((icon, idx) => {
-      allObjects.push({ type: 'icon', id: icon.id, zIndex: icon.zIndex ?? (500 + idx), data: icon });
-    });
+    // Get actual z-index for each object
+    const getActualZIndex = (obj: any) => {
+      if (obj.type === 'device') return obj.data.z ?? 0;
+      if (obj.type === 'icon') return obj.data.zIndex ?? 0;
+      if (obj.type === 'deco') return obj.data.zIndex ?? 0;
+      if (obj.type === 'textbox') return obj.data.zIndex ?? 0;
+      if (obj.type === 'canvasimage') return obj.data.zIndex ?? 0;
+      return 0;
+    };
 
-    // Add decorations
-    cur.decos.forEach((deco, idx) => {
-      const baseZ = deco.depth === 'back' ? -1000 : 1000;
-      allObjects.push({ type: 'deco', id: deco.id, zIndex: deco.zIndex ?? (baseZ + idx), data: deco });
-    });
-
-    // Add textboxes
-    cur.textboxes.forEach((tb, idx) => {
-      allObjects.push({ type: 'textbox', id: tb.id, zIndex: 2000 + idx, data: tb });
-    });
-
-    // Add canvas images
-    (cur.canvasImages || []).forEach((img, idx) => {
-      allObjects.push({ type: 'canvasimage', id: img.id, zIndex: img.zIndex ?? (1500 + idx), data: img });
-    });
-
-    // Sort by z-index
-    allObjects.sort((a, b) => a.zIndex - b.zIndex);
+    // Sort by actual z-index
+    allObjects.sort((a, b) => getActualZIndex(a) - getActualZIndex(b));
 
     // Find the object
     const currentIndex = allObjects.findIndex(obj => obj.id === id && obj.type === kind);
@@ -718,43 +709,38 @@ export const useStudio = create<StudioState>((set, get) => ({
     const newIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1;
     if (newIndex < 0 || newIndex >= allObjects.length) return;
 
-    // Swap z-indices
-    const tempZ = allObjects[currentIndex].zIndex;
-    allObjects[currentIndex].zIndex = allObjects[newIndex].zIndex;
-    allObjects[newIndex].zIndex = tempZ;
+    // Swap positions in array
+    [allObjects[currentIndex], allObjects[newIndex]] = [allObjects[newIndex], allObjects[currentIndex]];
 
-    // Update objects in project
+    // Assign new sequential z-indices (1, 2, 3, 4...)
     get().update(p => {
       const newProject = { ...p };
 
-      // Update devices
-      newProject.devices = p.devices.map(d => {
-        const obj = allObjects.find(o => o.type === 'device' && o.id === d.id);
-        return obj ? { ...d, z: obj.zIndex } : d;
-      });
+      // Update all objects with new sequential z-indices
+      allObjects.forEach((obj, idx) => {
+        const newZIndex = idx + 1; // Sequential: 1, 2, 3, 4...
 
-      // Update icons
-      newProject.icons = p.icons.map(icon => {
-        const obj = allObjects.find(o => o.type === 'icon' && o.id === icon.id);
-        return obj ? { ...icon, zIndex: obj.zIndex } : icon;
-      });
-
-      // Update decorations
-      newProject.decos = p.decos.map(deco => {
-        const obj = allObjects.find(o => o.type === 'deco' && o.id === deco.id);
-        return obj ? { ...deco, zIndex: obj.zIndex } : deco;
-      });
-
-      // Update textboxes
-      newProject.textboxes = p.textboxes.map(tb => {
-        const obj = allObjects.find(o => o.type === 'textbox' && o.id === tb.id);
-        return obj ? { ...tb, zIndex: obj.zIndex } : tb;
-      });
-
-      // Update canvas images
-      newProject.canvasImages = (p.canvasImages || []).map(img => {
-        const obj = allObjects.find(o => o.type === 'canvasimage' && o.id === img.id);
-        return obj ? { ...img, zIndex: obj.zIndex } : img;
+        if (obj.type === 'device') {
+          newProject.devices = newProject.devices.map(d => 
+            d.id === obj.id ? { ...d, z: newZIndex } : d
+          );
+        } else if (obj.type === 'icon') {
+          newProject.icons = newProject.icons.map(icon => 
+            icon.id === obj.id ? { ...icon, zIndex: newZIndex } : icon
+          );
+        } else if (obj.type === 'deco') {
+          newProject.decos = newProject.decos.map(deco => 
+            deco.id === obj.id ? { ...deco, zIndex: newZIndex } : deco
+          );
+        } else if (obj.type === 'textbox') {
+          newProject.textboxes = newProject.textboxes.map(tb => 
+            tb.id === obj.id ? { ...tb, zIndex: newZIndex } : tb
+          );
+        } else if (obj.type === 'canvasimage') {
+          newProject.canvasImages = (newProject.canvasImages || []).map(img => 
+            img.id === obj.id ? { ...img, zIndex: newZIndex } : img
+          );
+        }
       });
 
       return newProject;
