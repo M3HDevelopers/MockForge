@@ -861,11 +861,13 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
   );
 }
 
-function DeviceNode({ d, guides, setGuides, setDistanceInfo }: {
+function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDragEnd }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
   setGuides: (g: { v: number | null; h: number | null }) => void;
   setDistanceInfo: (info: { left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   const p = useStudio(s => s.project)!;
   const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
@@ -885,6 +887,7 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo }: {
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
+    onDragStart();
   };
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -914,7 +917,7 @@ function DeviceNode({ d, guides, setGuides, setDistanceInfo }: {
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
     }
   };
-  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); setDistanceInfo(null); };
+  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); setDistanceInfo(null); onDragEnd(); };
 
   const onDrop = (e: RDragEvent) => {
     e.preventDefault();
@@ -973,6 +976,7 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
   const [distanceInfo, setDistanceInfo] = useState<{ left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null>(null);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
@@ -1060,7 +1064,7 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
             <PaintCanvas p={p} depth="all" />
-            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} />)}
+            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />)}
             <PaintCanvas p={p} depth="front" />
             {p.decos.map(deco => (
               <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
@@ -1084,6 +1088,7 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
                   canvasWidth={p.canvas.w}
                   canvasHeight={p.canvas.h}
                   zoom={zoom}
+                  isDragging={isDragging}
                   selectedObject={{
                     x: selectedDevice.x,
                     y: selectedDevice.y,

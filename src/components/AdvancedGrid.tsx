@@ -11,6 +11,7 @@ interface AdvancedGridProps {
   canvasWidth: number;
   canvasHeight: number;
   zoom: number;
+  isDragging: boolean;
   selectedObject?: {
     x: number;
     y: number;
@@ -25,18 +26,19 @@ interface AdvancedGridProps {
   }>;
 }
 
-export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, selectedObject, otherObjects = [] }: AdvancedGridProps) {
+export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, isDragging, selectedObject, otherObjects = [] }: AdvancedGridProps) {
   const [guides, setGuides] = useState<DistanceGuide[]>([]);
 
   useEffect(() => {
-    if (!selectedObject) {
+    // Only show guides when dragging
+    if (!isDragging || !selectedObject) {
       setGuides([]);
       return;
     }
 
     const allGuides: DistanceGuide[] = [];
     const maxDistance = 300; // Maximum distance to show guides
-    const maxGuidesPerSide = 5; // Only show closest 5 guides per side
+    const maxGuidesPerSide = 2; // Only show closest 2 guides per side
 
     // Calculate distances from canvas edges
     const leftDist = selectedObject.x;
