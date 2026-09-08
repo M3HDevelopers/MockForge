@@ -388,6 +388,10 @@ function TextProps() {
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const t = project.text;
+  
+  // Safety check - prevent crash if text is undefined
+  if (!t) return null;
+  
   const patch = (fn: (x: typeof t) => typeof t) => update(p => ({ ...p, text: fn(p.text) }), false);
 
   return (
