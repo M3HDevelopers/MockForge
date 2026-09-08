@@ -53,6 +53,8 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
   const zoom = useStudio(s => s.zoom);
   const selected = useStudio(s => s.selection?.kind === 'deco' && (s.selection.id === deco.id || s.selection.ids?.includes(deco.id)));
   
+  if (deco.visible === false) return null;
+  
   const size = deco.scale * Math.min(canvasW, canvasH);
   const x = deco.x * canvasW - size / 2;
   const y = deco.y * canvasH - size / 2;
@@ -60,6 +62,7 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    if (deco.locked) return;
     e.stopPropagation();
     
     // Multi-select with Shift key
@@ -688,7 +691,7 @@ function LogoOverlay({ p }: { p: Project }) {
 
 function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: IconLayerType; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const iconDef = ICONS.find((i) => i.id === icon.iconId);
-  if (!iconDef) return null;
+  if (!iconDef || icon.visible === false) return null;
 
   const setSelection = useStudio(s => s.setSelection);
   const addToSelection = useStudio(s => s.addToSelection);
@@ -708,6 +711,7 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    if (icon.locked) return;
     e.stopPropagation();
     
     // Multi-select with Shift key
@@ -1490,20 +1494,89 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
             <PaintCanvas p={p} depth="all" />
-            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />)}
+            
+            {/* Unified Layer System - All objects sorted by z-index */}
+            {(() => {
+              // Combine all objects with their type and z-index
+              const allObjects: Array<{
+                type: 'device' | 'deco' | 'icon' | 'textbox' | 'canvasimage';
+                id: string;
+                zIndex: number;
+                data: any;
+              }> = [];
+
+              // Add devices
+              sorted.forEach((d, idx) => {
+                allObjects.push({
+                  type: 'device',
+                  id: d.id,
+                  zIndex: d.z ?? idx,
+                  data: d
+                });
+              });
+
+              // Add decorations
+              p.decos.forEach((deco, idx) => {
+                const baseZ = deco.depth === 'back' ? -1000 : 1000;
+                allObjects.push({
+                  type: 'deco',
+                  id: deco.id,
+                  zIndex: deco.zIndex ?? (baseZ + idx),
+                  data: deco
+                });
+              });
+
+              // Add icons
+              p.icons.forEach((icon, idx) => {
+                allObjects.push({
+                  type: 'icon',
+                  id: icon.id,
+                  zIndex: icon.zIndex ?? (500 + idx),
+                  data: icon
+                });
+              });
+
+              // Add textboxes
+              p.textboxes.forEach((textbox, idx) => {
+                allObjects.push({
+                  type: 'textbox',
+                  id: textbox.id,
+                  zIndex: 2000 + idx,
+                  data: textbox
+                });
+              });
+
+              // Add canvas images
+              p.canvasImages?.forEach((img, idx) => {
+                allObjects.push({
+                  type: 'canvasimage',
+                  id: img.id,
+                  zIndex: img.zIndex ?? (1500 + idx),
+                  data: img
+                });
+              });
+
+              // Sort by z-index
+              allObjects.sort((a, b) => a.zIndex - b.zIndex);
+
+              // Render in order
+              return allObjects.map(obj => {
+                if (obj.type === 'device') {
+                  return <DeviceNode key={`device-${obj.id}`} d={obj.data} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />;
+                } else if (obj.type === 'deco') {
+                  return <DecoLayer key={`deco-${obj.id}`} deco={obj.data} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />;
+                } else if (obj.type === 'icon') {
+                  return <IconLayer key={`icon-${obj.id}`} icon={obj.data} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />;
+                } else if (obj.type === 'textbox') {
+                  return <TextBoxLayer key={`textbox-${obj.id}`} textbox={obj.data} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />;
+                } else if (obj.type === 'canvasimage') {
+                  return <CanvasImageLayer key={`canvasimage-${obj.id}`} img={obj.data} project={p} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />;
+                }
+                return null;
+              });
+            })()}
+            
             <PaintCanvas p={p} depth="front" />
-            {p.decos.map(deco => (
-              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
-            ))}
-            {p.icons.map(icon => (
-              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
-            ))}
-            {p.textboxes.map(textbox => (
-              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
-            ))}
-            {p.canvasImages?.map(img => (
-              <CanvasImageLayer key={img.id} img={img} project={p} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
-            ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
             
@@ -1651,11 +1724,11 @@ export function StagePreview({ toolMode = 'select', onContextMenu }: { toolMode?
               </>
             )}
 
-            {p.devices.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
+            {p.devices.length === 0 && (!p.canvasImages || p.canvasImages.length === 0) && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="px-6 py-4 text-center" style={{ border: '1.5px dashed rgba(255,255,255,0.25)', borderRadius: 12 }}>
                   <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 600, fontSize: 20, color: textOn(p.background.c1) }}>Canvas is empty</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: textOn(p.background.c1), opacity: 0.6, marginTop: 4 }}>add a device from the left panel</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: textOn(p.background.c1), opacity: 0.6, marginTop: 4 }}>add a device or image from the left panel</div>
                 </div>
               </div>
             )}

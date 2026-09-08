@@ -154,6 +154,7 @@ interface StudioState {
   distributeDevices: (axis: 'h' | 'v') => void;
 
   removeIcon: (id: string) => void;
+  updateIcon: (id: string, updates: Partial<import('./types').IconLayer>) => void;
   addIconsAroundDevice: (deviceId: string, iconIds: string[]) => void;
   addTechStackIcons: (techStack: string[]) => void;
   autoClusterIcons: () => void;
@@ -581,6 +582,13 @@ export const useStudio = create<StudioState>((set, get) => ({
   removeIcon: (id) => {
     get().update(p => ({ ...p, icons: p.icons.filter(i => i.id !== id) }));
     set(s => s.selection?.id === id ? { selection: null } : s);
+  },
+
+  updateIcon: (id, updates) => {
+    get().update(p => ({
+      ...p,
+      icons: p.icons.map(i => i.id === id ? { ...i, ...updates } : i)
+    }), false);
   },
 
   addTextBox: () => {

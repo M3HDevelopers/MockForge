@@ -143,9 +143,85 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
 
       {selection.kind === 'icon' && (
         <>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const icon = project.icons.find(i => i.id === selection.id);
+              if (icon) {
+                useStudio.getState().updateIcon(selection.id, { locked: !icon.locked });
+                toast(icon.locked ? 'Icon unlocked' : 'Icon locked');
+              }
+            }
+            onClose();
+          }}>
+            {project.icons.find(i => i.id === selection.id)?.locked ? (
+              <>
+                <IcUnlock size={14} />
+                <span>Unlock</span>
+              </>
+            ) : (
+              <>
+                <IcLock size={14} />
+                <span>Lock</span>
+              </>
+            )}
+          </div>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const icon = project.icons.find(i => i.id === selection.id);
+              if (icon) {
+                useStudio.getState().updateIcon(selection.id, { visible: !icon.visible });
+                toast(icon.visible ? 'Icon hidden' : 'Icon shown');
+              }
+            }
+            onClose();
+          }}>
+            {project.icons.find(i => i.id === selection.id)?.visible === false ? (
+              <>
+                <IcEye size={14} />
+                <span>Show</span>
+              </>
+            ) : (
+              <>
+                <IcEyeOff size={14} />
+                <span>Hide</span>
+              </>
+            )}
+          </div>
+          <div className="h-px bg-line my-1" />
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const icon = project.icons.find(i => i.id === selection.id);
+              if (icon) {
+                useStudio.getState().updateIcon(selection.id, { zIndex: (icon.zIndex || 500) + 10 });
+                toast('Brought forward');
+              }
+            }
+            onClose();
+          }}>
+            <IcArrowR size={14} className="rotate-90" />
+            <span>Bring Forward</span>
+          </div>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const icon = project.icons.find(i => i.id === selection.id);
+              if (icon) {
+                useStudio.getState().updateIcon(selection.id, { zIndex: Math.max(0, (icon.zIndex || 500) - 10) });
+                toast('Sent backward');
+              }
+            }
+            onClose();
+          }}>
+            <IcArrowL size={14} className="rotate-90" />
+            <span>Send Backward</span>
+          </div>
+          <div className="h-px bg-line my-1" />
           <div className={menuItemClass} onClick={() => { toast('Select icon to edit properties in right panel'); onClose(); }}>
             <IcType size={14} />
-            <span>Edit Icon Properties</span>
+            <span>Edit Properties →</span>
           </div>
           <div className={menuItemClass} onClick={() => {
             if (selection.id) {
@@ -183,9 +259,97 @@ export function ContextMenu({ x, y, onClose }: ContextMenuProps) {
 
       {selection.kind === 'deco' && (
         <>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const deco = project.decos.find(d => d.id === selection.id);
+              if (deco) {
+                useStudio.getState().update(p => ({
+                  ...p,
+                  decos: p.decos.map(d => d.id === selection.id ? { ...d, locked: !d.locked } : d)
+                }));
+                toast(deco.locked ? 'Decoration unlocked' : 'Decoration locked');
+              }
+            }
+            onClose();
+          }}>
+            {project.decos.find(d => d.id === selection.id)?.locked ? (
+              <>
+                <IcUnlock size={14} />
+                <span>Unlock</span>
+              </>
+            ) : (
+              <>
+                <IcLock size={14} />
+                <span>Lock</span>
+              </>
+            )}
+          </div>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const deco = project.decos.find(d => d.id === selection.id);
+              if (deco) {
+                useStudio.getState().update(p => ({
+                  ...p,
+                  decos: p.decos.map(d => d.id === selection.id ? { ...d, visible: !d.visible } : d)
+                }));
+                toast(deco.visible ? 'Decoration hidden' : 'Decoration shown');
+              }
+            }
+            onClose();
+          }}>
+            {project.decos.find(d => d.id === selection.id)?.visible === false ? (
+              <>
+                <IcEye size={14} />
+                <span>Show</span>
+              </>
+            ) : (
+              <>
+                <IcEyeOff size={14} />
+                <span>Hide</span>
+              </>
+            )}
+          </div>
+          <div className="h-px bg-line my-1" />
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const deco = project.decos.find(d => d.id === selection.id);
+              if (deco) {
+                useStudio.getState().update(p => ({
+                  ...p,
+                  decos: p.decos.map(d => d.id === selection.id ? { ...d, zIndex: (d.zIndex || 0) + 10 } : d)
+                }));
+                toast('Brought forward');
+              }
+            }
+            onClose();
+          }}>
+            <IcArrowR size={14} className="rotate-90" />
+            <span>Bring Forward</span>
+          </div>
+          <div className={menuItemClass} onClick={() => {
+            if (selection.id) {
+              checkpoint();
+              const deco = project.decos.find(d => d.id === selection.id);
+              if (deco) {
+                useStudio.getState().update(p => ({
+                  ...p,
+                  decos: p.decos.map(d => d.id === selection.id ? { ...d, zIndex: Math.max(-1000, (d.zIndex || 0) - 10) } : d)
+                }));
+                toast('Sent backward');
+              }
+            }
+            onClose();
+          }}>
+            <IcArrowL size={14} className="rotate-90" />
+            <span>Send Backward</span>
+          </div>
+          <div className="h-px bg-line my-1" />
           <div className={menuItemClass} onClick={() => { toast('Select decoration to edit properties in right panel'); onClose(); }}>
             <IcType size={14} />
-            <span>Edit Decoration Properties</span>
+            <span>Edit Properties →</span>
           </div>
           <div className={menuItemClass} onClick={() => {
             if (selection.id) {

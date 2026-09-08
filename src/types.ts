@@ -113,6 +113,9 @@ export interface IconLayer {
   glow: boolean;
   material?: IconMaterial;
   gradient?: { from: string; to: string };
+  zIndex?: number;
+  locked?: boolean;
+  visible?: boolean;
 }
 
 // Canvas Image - Independent image object on canvas
@@ -229,6 +232,9 @@ export interface DecoLayer {
   depth: DecoDepth;
   hue: string | null;
   seed: number;
+  zIndex?: number;
+  locked?: boolean;
+  visible?: boolean;
 }
 
 export interface DecorationState {
