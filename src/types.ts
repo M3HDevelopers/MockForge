@@ -251,7 +251,7 @@ export interface Project {
 
 /* ================= editor state ================= */
 export interface Selection {
-  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon';
+  kind: 'device' | 'text' | 'logo' | 'background' | 'deco' | 'icon' | 'textbox';
   id?: string;
 }
 

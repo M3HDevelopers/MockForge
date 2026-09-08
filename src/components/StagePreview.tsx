@@ -773,6 +773,93 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
   );
 }
 
+function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: number; canvasH: number }) {
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'textbox' && s.selection.id === textbox.id);
+  
+  const x = textbox.x * canvasW;
+  const y = textbox.y * canvasH;
+  const width = textbox.width * canvasW;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'textbox', id: textbox.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: textbox.x, oy: textbox.y };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      textboxes: p.textboxes.map(t => t.id === textbox.id ? { ...t, x: drag.ox + dx, y: drag.oy + dy } : t)
+    }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  // Background style
+  let bgStyle: React.CSSProperties = {};
+  if (textbox.bgType === 'solid') {
+    bgStyle.background = textbox.bgColor;
+  } else if (textbox.bgType === 'gradient') {
+    bgStyle.background = textbox.bgGradient || `linear-gradient(135deg, ${textbox.bgColor}88, ${textbox.bgColor})`;
+  } else if (textbox.bgType === 'glass') {
+    bgStyle.background = `${textbox.bgColor}33`;
+    bgStyle.backdropFilter = 'blur(8px)';
+    bgStyle.border = `1px solid ${textbox.bgColor}66`;
+  }
+  
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: width,
+        transform: `rotate(${textbox.rotation}deg)`,
+        opacity: textbox.opacity,
+        ...bgStyle,
+        padding: textbox.padding,
+        borderRadius: textbox.borderRadius,
+        boxShadow: textbox.shadow ? '0 4px 12px rgba(0,0,0,0.3)' : textbox.glow ? `0 0 20px ${textbox.glowColor}` : undefined,
+        filter: textbox.glow ? `drop-shadow(0 0 12px ${textbox.glowColor})` : undefined,
+        pointerEvents: 'auto',
+        zIndex: selected ? 100 : 1,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <div
+        style={{
+          fontFamily: textbox.fontFamily,
+          fontSize: textbox.fontSize,
+          fontWeight: textbox.fontWeight,
+          color: textbox.color,
+          textAlign: textbox.align,
+          lineHeight: 1.4,
+          wordWrap: 'break-word',
+        }}
+      >
+        {textbox.text}
+      </div>
+    </div>
+  );
+}
+
 function DeviceNode({ d, guides, setGuides }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
@@ -906,6 +993,9 @@ export function StagePreview() {
             ))}
             {p.icons.map(icon => (
               <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
+            {p.textboxes.map(textbox => (
+              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} />
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />

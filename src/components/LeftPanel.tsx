@@ -9,7 +9,7 @@ import { loadDemoAssets } from '../sampleScreens';
 import { Section } from './ui';
 import {
   IcBrowser, IcDevice, IcImage, IcLaptop, IcMonitor, IcPhone, IcPlus, IcRefresh, IcSpark,
-  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg, IcGrid,
+  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg, IcGrid, IcType,
 } from '../icons';
 import { IMAGE_ASSETS, searchImages } from '../imageAssets';
 import { ICONS, searchIcons } from '../iconLibrary';
@@ -18,7 +18,7 @@ const DEVICE_ICONS: Record<DeviceKind, (p: { size?: number }) => JSX.Element> = 
   laptop: IcLaptop, phone: IcPhone, tablet: IcTablet, browser: IcBrowser, monitor: IcMonitor,
 };
 
-type Tab = 'screens' | 'devices' | 'backdrop' | 'decor' | 'images' | 'icons';
+type Tab = 'screens' | 'devices' | 'backdrop' | 'decor' | 'images' | 'icons' | 'textboxes';
 
 export function LeftPanel() {
   const [tab, setTab] = useState<Tab>('screens');
@@ -29,6 +29,7 @@ export function LeftPanel() {
     { id: 'decor', label: 'Decor', icon: IcSpark },
     { id: 'images', label: 'Images', icon: IcImage },
     { id: 'icons', label: 'Icons', icon: IcSpark },
+    { id: 'textboxes', label: 'Text', icon: IcType },
   ];
   return (
     <div className="w-[264px] shrink-0 border-r border-line2 bg-panel flex flex-col">
@@ -85,8 +86,63 @@ export function LeftPanel() {
         {tab === 'decor' && <DecorTab />}
         {tab === 'images' && <ImagesTab />}
         {tab === 'icons' && <IconsTab />}
+        {tab === 'textboxes' && <TextboxesTab />}
       </div>
     </div>
+  );
+}
+
+function TextboxesTab() {
+  const project = useStudio(s => s.project)!;
+  const addTextBox = useStudio(s => s.addTextBox);
+  const removeTextBox = useStudio(s => s.removeTextBox);
+
+  return (
+    <>
+      <Section title={`Text Boxes · ${project.textboxes.length}`}>
+        <button
+          className="btn w-full justify-center !text-[11px] mb-2"
+          onClick={addTextBox}
+        >
+          <IcPlus size={12} /> Add Text Box
+        </button>
+        
+        {project.textboxes.length === 0 ? (
+          <p className="text-[10px] text-dim text-center py-4">
+            No text boxes yet. Click "Add Text Box" to create one.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {project.textboxes.map((tb, i) => (
+              <div key={tb.id} className="flex items-center gap-2 p-2 rounded-lg border border-line bg-panel">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-medium truncate">{tb.text || 'Empty text box'}</div>
+                  <div className="text-[9px] text-dim" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {tb.fontFamily} · {tb.fontSize}px
+                  </div>
+                </div>
+                <button
+                  className="icon-btn !w-5 !h-5 hover:!text-danger"
+                  onClick={() => removeTextBox(tb.id)}
+                >
+                  <IcTrash size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Tips">
+        <ul className="text-[9px] text-dim space-y-1">
+          <li>• Click text box on canvas to select</li>
+          <li>• Drag to move anywhere</li>
+          <li>• Edit properties in right panel</li>
+          <li>• Change font, size, color, background</li>
+          <li>• Add shadow or glow effects</li>
+        </ul>
+      </Section>
+    </>
   );
 }
 

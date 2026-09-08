@@ -22,6 +22,7 @@ export function RightPanel() {
   const device = selection?.kind === 'device' ? project.devices.find(d => d.id === selection.id) : undefined;
   const icon = selection?.kind === 'icon' ? project.icons.find(i => i.id === selection.id) : undefined;
   const deco = selection?.kind === 'deco' ? project.decos.find(d => d.id === selection.id) : undefined;
+  const textbox = selection?.kind === 'textbox' ? project.textboxes.find(t => t.id === selection.id) : undefined;
 
   return (
     <div className="w-[292px] shrink-0 border-l border-line2 bg-panel flex flex-col h-full overflow-hidden">
@@ -29,6 +30,7 @@ export function RightPanel() {
         {device ? <DeviceProps d={device} />
           : icon ? <IconProps i={icon} />
           : deco ? <DecoProps d={deco} />
+          : textbox ? <TextBoxProps t={textbox} />
           : selection?.kind === 'text' ? <TextProps />
           : selection?.kind === 'logo' ? <LogoProps />
           : <BackgroundProps />}
@@ -582,6 +584,111 @@ function DecoProps({ d }: { d: any }) {
             In front
           </button>
         </div>
+      </Section>
+    </>
+  );
+}
+
+function TextBoxProps({ t }: { t: any }) {
+  const project = useStudio(s => s.project)!;
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const removeTextBox = useStudio(s => s.removeTextBox);
+  const patch = (fn: (x: any) => any) =>
+    update(p => ({ ...p, textboxes: p.textboxes.map(x => x.id === t.id ? fn(x) : x) }), false);
+
+  const fontFamilies = [
+    'Space Grotesk', 'IBM Plex Sans', 'Inter', 'Roboto', 'Open Sans', 
+    'Montserrat', 'Poppins', 'Raleway', 'Oswald', 'Merriweather',
+    'Source Code Pro', 'Fira Code', 'JetBrains Mono'
+  ];
+
+  return (
+    <>
+      <Section title="Text Box" right={
+        <button className="icon-btn !w-6 !h-6 hover:!text-danger" onClick={() => removeTextBox(t.id)}>
+          <IcTrash size={12} />
+        </button>
+      }>
+        <textarea
+          className="input !text-[12px] !min-h-[60px] resize-y"
+          value={t.text}
+          onChange={(e) => patch((x: any) => ({ ...x, text: e.target.value }))}
+          onFocus={() => checkpoint()}
+          placeholder="Enter your text..."
+        />
+      </Section>
+
+      <Section title="Typography">
+        <div className="space-y-2">
+          <div>
+            <div className="label-mono mb-1">Font Family</div>
+            <select
+              className="input !text-[11px]"
+              value={t.fontFamily}
+              onChange={(e) => patch((x: any) => ({ ...x, fontFamily: e.target.value }))}
+            >
+              {fontFamilies.map(f => (
+                <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+              ))}
+            </select>
+          </div>
+          <SliderRow label="Font Size" value={t.fontSize} min={12} max={120} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, fontSize: v }))} />
+          <SliderRow label="Font Weight" value={t.fontWeight} min={100} max={900} step={100} fmt={v => `${v}`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, fontWeight: v }))} />
+          <div>
+            <div className="label-mono mb-1">Alignment</div>
+            <div className="grid grid-cols-3 gap-1">
+              {(['left', 'center', 'right'] as const).map(align => (
+                <button
+                  key={align}
+                  className={`py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize ${t.align === align ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+                  onClick={() => { checkpoint(); patch((x: any) => ({ ...x, align })); }}
+                >
+                  {align}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ColorInput value={t.color} onChange={v => patch((x: any) => ({ ...x, color: v }))} label="text color" />
+        </div>
+      </Section>
+
+      <Section title="Transform">
+        <SliderRow label="Width" value={Math.round(t.width * 100)} min={10} max={80} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, width: v / 100 }))} />
+        <SliderRow label="Rotation" value={t.rotation} min={-180} max={180} fmt={v => `${v}°`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, rotation: v }))} />
+        <SliderRow label="Opacity" value={Math.round(t.opacity * 100)} min={10} max={100} fmt={v => `${v}%`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, opacity: v / 100 }))} />
+      </Section>
+
+      <Section title="Background">
+        <div>
+          <div className="label-mono mb-1">Type</div>
+          <div className="grid grid-cols-4 gap-1">
+            {(['none', 'solid', 'gradient', 'glass'] as const).map(type => (
+              <button
+                key={type}
+                className={`py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize ${t.bgType === type ? 'border-acc bg-acc/10 text-acc' : 'border-line bg-panel text-mut'}`}
+                onClick={() => { checkpoint(); patch((x: any) => ({ ...x, bgType: type })); }}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+        {t.bgType !== 'none' && (
+          <>
+            <ColorInput value={t.bgColor} onChange={v => patch((x: any) => ({ ...x, bgColor: v }))} label="bg color" />
+            <SliderRow label="Padding" value={t.padding} min={0} max={40} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, padding: v }))} />
+            <SliderRow label="Border Radius" value={t.borderRadius} min={0} max={30} fmt={v => `${v}px`} onStart={checkpoint} onChange={v => patch((x: any) => ({ ...x, borderRadius: v }))} />
+          </>
+        )}
+      </Section>
+
+      <Section title="Effects">
+        <Toggle on={t.shadow} onChange={v => patch((x: any) => ({ ...x, shadow: v }))} label="Shadow" />
+        <Toggle on={t.glow} onChange={v => patch((x: any) => ({ ...x, glow: v }))} label="Glow" />
+        {t.glow && (
+          <ColorInput value={t.glowColor} onChange={v => patch((x: any) => ({ ...x, glowColor: v }))} label="glow color" />
+        )}
       </Section>
     </>
   );
