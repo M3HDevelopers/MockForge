@@ -6,6 +6,7 @@ import { RightPanel } from './RightPanel';
 import { StagePreview } from './StagePreview';
 import { ExportModal } from './ExportModal';
 import { GeneratePanel } from './GeneratePanel';
+import { ShortcutsModal } from './ShortcutsModal';
 import { clamp } from '../templates';
 import {
   IcArrowL, IcDice, IcDownload, IcExport, IcFit, IcRedo, IcSave, IcStar, IcUndo, IcUpload, IcWand, IcZoomIn, IcZoomOut, LogoMark,
@@ -61,17 +62,46 @@ export function Editor() {
       else if (mod && e.key.toLowerCase() === 'd') {
         if (selection?.kind === 'device' && selection.id) { e.preventDefault(); duplicateDevice(selection.id); }
       }
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selection?.kind === 'device' && selection.id) {
-        e.preventDefault(); removeDevice(selection.id);
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selection?.id) {
+        e.preventDefault();
+        if (selection.kind === 'device') {
+          removeDevice(selection.id);
+        } else if (selection.kind === 'icon') {
+          const removeIcon = useStudio.getState().removeIcon;
+          removeIcon(selection.id);
+        } else if (selection.kind === 'textbox') {
+          const removeTextBox = useStudio.getState().removeTextBox;
+          removeTextBox(selection.id);
+        } else if (selection.kind === 'deco') {
+          update(p => ({ ...p, decos: p.decos.filter(d => d.id !== selection.id) }), false);
+          setSelection(null);
+        }
       }
       else if (e.key === 'Escape') setSelection(null);
-      else if (e.key.startsWith('Arrow') && selection?.kind === 'device' && selection.id) {
+      else if (e.key.startsWith('Arrow') && selection?.id) {
         e.preventDefault();
-        const step = e.shiftKey ? 20 : 4;
+        
+        // Determine step size based on modifiers
+        let step = 4;
+        if (e.shiftKey && mod) step = 10; // Ctrl+Shift = 10px
+        else if (e.shiftKey) step = 20; // Shift = 20px
+        else if (mod) step = 1; // Ctrl = 1px (precise)
+        // Default = 4px
+        
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        
         checkpoint();
-        update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, x: d.x + dx, y: d.y + dy } : d) }), false);
+        
+        if (selection.kind === 'device') {
+          update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, x: d.x + dx, y: d.y + dy } : d) }), false);
+        } else if (selection.kind === 'icon') {
+          update(p => ({ ...p, icons: p.icons.map(i => i.id === selection.id ? { ...i, x: i.x + (dx / p.canvas.w), y: i.y + (dy / p.canvas.h) } : i) }), false);
+        } else if (selection.kind === 'textbox') {
+          update(p => ({ ...p, textboxes: p.textboxes.map(t => t.id === selection.id ? { ...t, x: t.x + (dx / p.canvas.w), y: t.y + (dy / p.canvas.h) } : t) }), false);
+        } else if (selection.kind === 'deco') {
+          update(p => ({ ...p, decos: p.decos.map(d => d.id === selection.id ? { ...d, x: d.x + (dx / p.canvas.w), y: d.y + (dy / p.canvas.h) } : d) }), false);
+        }
       }
       // Advanced shortcuts
       else if (mod && e.key.toLowerCase() === 'g') { e.preventDefault(); setGenOpen(true); } // Open Design Engine
@@ -280,6 +310,7 @@ export function Editor() {
           ref={mockupRef} type="file" hidden accept=".json,application/json"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void importMockup(f); e.target.value = ''; }}
         />
+        <ShortcutsModal />
       </div>
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
