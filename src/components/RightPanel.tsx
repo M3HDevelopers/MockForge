@@ -538,6 +538,38 @@ function IconProps({ i }: { i: import('../types').IconLayer }) {
         <Toggle on={i.shadow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, shadow: v })); }} label="Shadow" />
         <Toggle on={i.glow} onChange={(v) => { checkpoint(); patch(x => ({ ...x, glow: v })); }} label="Glow" />
       </Section>
+
+      <Section title="Material Style">
+        <div className="grid grid-cols-3 gap-1">
+          {(['matte', 'glossy', 'glass', 'metallic', 'ceramic', 'holographic'] as const).map(mat => (
+            <button
+              key={mat}
+              onClick={() => { 
+                checkpoint(); 
+                // Apply material-specific styling
+                const materialStyles = {
+                  matte: { shadow: false, glow: false, bgStyle: 'rounded' as const, bgColor: '#888888' },
+                  glossy: { shadow: true, glow: false, bgStyle: 'gradient' as const, bgColor: '#ffffff' },
+                  glass: { shadow: false, glow: false, bgStyle: 'glass' as const, bgColor: '#ffffff' },
+                  metallic: { shadow: true, glow: false, bgStyle: 'gradient' as const, bgColor: '#c0c0c0' },
+                  ceramic: { shadow: true, glow: false, bgStyle: 'rounded' as const, bgColor: '#f5f5f5' },
+                  holographic: { shadow: false, glow: true, bgStyle: 'gradient' as const, bgColor: '#ff69b4' },
+                };
+                patch(x => ({ ...x, ...materialStyles[mat] }));
+              }}
+              className="py-1.5 text-[10px] rounded-md border cursor-pointer transition-all capitalize"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                borderColor: 'var(--color-line)',
+                background: 'var(--color-panel)',
+                color: 'var(--color-mut)',
+              }}
+            >
+              {mat}
+            </button>
+          ))}
+        </div>
+      </Section>
     </>
   );
 }

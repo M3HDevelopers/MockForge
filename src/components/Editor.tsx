@@ -53,6 +53,8 @@ export function Editor() {
       const el = e.target as HTMLElement;
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return;
       const mod = e.ctrlKey || e.metaKey;
+      
+      // Basic shortcuts
       if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
       else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); void saveNow(false); }
@@ -70,6 +72,20 @@ export function Editor() {
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
         checkpoint();
         update(p => ({ ...p, devices: p.devices.map(d => d.id === selection.id ? { ...d, x: d.x + dx, y: d.y + dy } : d) }), false);
+      }
+      // Advanced shortcuts
+      else if (mod && e.key.toLowerCase() === 'g') { e.preventDefault(); setGenOpen(true); } // Open Design Engine
+      else if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); setExportOpen(true); } // Open Export
+      else if (mod && e.shiftKey && e.key.toLowerCase() === 'r') { e.preventDefault(); randomize(); } // Surprise me
+      else if (mod && e.key === '[') { e.preventDefault(); setZoom(zoom * 0.9); } // Zoom out
+      else if (mod && e.key === ']') { e.preventDefault(); setZoom(zoom * 1.1); } // Zoom in
+      else if (mod && e.key === '0') { e.preventDefault(); fitZoom(); } // Fit to screen
+      else if (e.key === 'Tab' && selection?.kind === 'device') {
+        e.preventDefault();
+        // Cycle through devices
+        const currentIndex = project.devices.findIndex(d => d.id === selection.id);
+        const nextIndex = (currentIndex + 1) % project.devices.length;
+        setSelection({ kind: 'device', id: project.devices[nextIndex].id });
       }
     };
     window.addEventListener('keydown', onKey);

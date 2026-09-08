@@ -19,7 +19,7 @@ const LOCK_LABELS: { k: keyof GenLocks; label: string }[] = [
   { k: 'decoration', label: 'Decor' }, { k: 'text', label: 'Text' }, { k: 'logo', label: 'Logo' },
 ];
 
-type Tab = 'generate' | 'variations' | 'library';
+type Tab = 'generate' | 'variations' | 'library' | 'pack';
 
 export function GeneratePanel() {
   const open = useStudio(s => s.genOpen);
@@ -51,9 +51,9 @@ export function GeneratePanel() {
             <span className="label-mono">procedural · no AI</span>
           </div>
           <div className="flex items-center gap-1">
-            {(['generate', 'variations', 'library'] as Tab[]).map(t => (
+            {(['generate', 'variations', 'library', 'pack'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-medium capitalize transition-colors ${tab === t ? 'bg-panel3 text-fg' : 'text-dim hover:text-mut'}`}>
-                {t}
+                {t === 'pack' ? 'Design Pack' : t}
               </button>
             ))}
             <button className="icon-btn ml-2" onClick={() => setOpen(false)}><IcClose size={15} /></button>
@@ -63,7 +63,97 @@ export function GeneratePanel() {
           {tab === 'generate' && <GenerateTab />}
           {tab === 'variations' && <VariationsTab />}
           {tab === 'library' && <LibraryTab />}
+          {tab === 'pack' && <DesignPackTab />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DesignPackTab() {
+  const generate = useStudio(s => s.generate);
+  const [packSize, setPackSize] = useState(10);
+  const [mood, setMood] = useState<Mood>('auto');
+  const [generating, setGenerating] = useState(false);
+
+  const generatePack = async () => {
+    setGenerating(true);
+    // Generate multiple designs with different seeds
+    for (let i = 0; i < packSize; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for visual feedback
+      generate('all');
+    }
+    setGenerating(false);
+  };
+
+  return (
+    <div className="p-5">
+      <div className="mb-6">
+        <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 700, fontSize: 15 }}>Design Pack Generator</div>
+        <div className="text-[11px] mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-dim)' }}>
+          Generate multiple unique designs at once
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <div className="label-mono mb-2">Pack Size</div>
+        <div className="grid grid-cols-4 gap-2">
+          {[5, 10, 20, 50].map(size => (
+            <button
+              key={size}
+              onClick={() => setPackSize(size)}
+              className={`py-2.5 rounded-lg border transition-all ${
+                packSize === size ? 'border-acc bg-acc/10 text-acc' : 'border-line hover:border-line2'
+              }`}
+            >
+              <div className="text-[13px] font-medium">{size}</div>
+              <div className="text-[9px] text-dim">designs</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <div className="label-mono mb-2">Design Mood</div>
+        <div className="flex flex-wrap gap-1.5">
+          {MOODS.slice(0, 8).map(m => (
+            <button
+              key={m}
+              onClick={() => setMood(m)}
+              className={`chip capitalize ${mood === m ? 'on' : ''}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button
+        className="btn btn-acc w-full justify-center !py-3 !text-[14px]"
+        onClick={generatePack}
+        disabled={generating}
+      >
+        {generating ? (
+          <>
+            <IcSpin size={16} />
+            Generating {packSize} designs...
+          </>
+        ) : (
+          <>
+            <IcGrid size={16} />
+            Generate {packSize} Designs
+          </>
+        )}
+      </button>
+
+      <div className="mt-4 p-3 rounded-lg border border-line bg-panel">
+        <div className="text-[11px] text-dim mb-2">What you'll get:</div>
+        <ul className="text-[10px] text-mut space-y-1">
+          <li>✓ {packSize} unique design variations</li>
+          <li>✓ Different backgrounds, layouts, and decorations</li>
+          <li>✓ All saved to your library</li>
+          <li>✓ Ready to use in your portfolio</li>
+        </ul>
       </div>
     </div>
   );

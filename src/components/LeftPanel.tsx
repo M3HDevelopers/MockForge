@@ -9,7 +9,7 @@ import { loadDemoAssets } from '../sampleScreens';
 import { Section } from './ui';
 import {
   IcBrowser, IcDevice, IcImage, IcLaptop, IcMonitor, IcPhone, IcPlus, IcRefresh, IcSpark,
-  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg,
+  IcSpin, IcTablet, IcTrash, IcUpload, IcCopy, IcSearch, IcBg, IcGrid,
 } from '../icons';
 import { IMAGE_ASSETS, searchImages } from '../imageAssets';
 import { ICONS, searchIcons } from '../iconLibrary';
@@ -568,9 +568,13 @@ function IconsTab() {
   const project = useStudio(s => s.project)!;
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
+  const addTechStackIcons = useStudio(s => s.addTechStackIcons);
+  const autoClusterIcons = useStudio(s => s.autoClusterIcons);
   const [cat, setCat] = useState<string>('all');
   const [q, setQ] = useState('');
   const [customIcons, setCustomIcons] = useState<any[]>([]);
+  const [showTechStack, setShowTechStack] = useState(false);
+  const [placementMode, setPlacementMode] = useState<'random' | 'around-device' | 'orbit'>('random');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
@@ -587,14 +591,37 @@ function IconsTab() {
   const addIcon = (iconId: string) => {
     checkpoint();
     const icon = list.find((i: any) => i.id === iconId);
+    
+    // Calculate position based on placement mode
+    let x = 0.5, y = 0.5;
+    if (placementMode === 'around-device' && project.devices.length > 0) {
+      const device = project.devices[0];
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 0.25 + Math.random() * 0.15;
+      x = (device.x + device.w / 2) / project.canvas.w + Math.cos(angle) * distance;
+      y = (device.y + device.w / DEVICE_META[device.kind].aspect / 2) / project.canvas.h + Math.sin(angle) * distance;
+    } else if (placementMode === 'orbit' && project.devices.length > 0) {
+      const device = project.devices[0];
+      const iconIndex = project.icons.length;
+      const totalIcons = iconIndex + 1;
+      const angle = (iconIndex / totalIcons) * Math.PI * 2;
+      const distance = 0.3;
+      x = (device.x + device.w / 2) / project.canvas.w + Math.cos(angle) * distance;
+      y = (device.y + device.w / DEVICE_META[device.kind].aspect / 2) / project.canvas.h + Math.sin(angle) * distance;
+    } else {
+      // Random placement
+      x = 0.2 + Math.random() * 0.6;
+      y = 0.2 + Math.random() * 0.6;
+    }
+    
     update(p => ({
       ...p,
       icons: [...p.icons, {
         id: uid(),
         iconId,
         iconPath: icon?.d || icon?.pathData || '',
-        x: 0.5,
-        y: 0.5,
+        x,
+        y,
         size: 0.08,
         color: '#ffffff',
         opacity: 1,
@@ -660,6 +687,63 @@ function IconsTab() {
           onChange={handleSvgUpload}
           style={{ display: 'none' }}
         />
+
+        {/* Tech Stack Visualizer */}
+        <button
+          className="btn w-full justify-center !text-[11px] mb-2"
+          onClick={() => setShowTechStack(!showTechStack)}
+        >
+          <IcSpark size={12} /> Tech Stack Visualizer
+        </button>
+        
+        {showTechStack && (
+          <div className="mb-2 p-2 rounded-lg border border-line bg-panel">
+            <div className="text-[10px] text-dim mb-1">Select tech stack:</div>
+            <div className="flex flex-wrap gap-1">
+              {['React', 'Node.js', 'MongoDB', 'TypeScript', 'Tailwind', 'Next.js', 'Vue', 'Angular', 'Firebase', 'Supabase'].map(tech => (
+                <button
+                  key={tech}
+                  className="chip !text-[9px]"
+                  onClick={() => {
+                    addTechStackIcons([tech]);
+                    setShowTechStack(false);
+                  }}
+                >
+                  {tech}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Auto-Cluster Icons */}
+        {project.icons.length >= 3 && (
+          <button
+            className="btn btn-ghost w-full justify-center !text-[11px] mb-2"
+            onClick={() => {
+              checkpoint();
+              autoClusterIcons();
+            }}
+          >
+            <IcGrid size={12} /> Auto-Cluster Icons
+          </button>
+        )}
+
+        {/* Placement Mode */}
+        <div className="mb-2">
+          <div className="label-mono mb-1">Placement Mode</div>
+          <div className="flex gap-1">
+            {(['random', 'around-device', 'orbit'] as const).map(mode => (
+              <button
+                key={mode}
+                className={`chip flex-1 justify-center !text-[9px] ${placementMode === mode ? 'on' : ''}`}
+                onClick={() => setPlacementMode(mode)}
+              >
+                {mode === 'random' ? 'Random' : mode === 'around-device' ? 'Around' : 'Orbit'}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="relative mb-2">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim"><IcSearch size={12} /></span>
