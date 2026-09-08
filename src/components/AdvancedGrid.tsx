@@ -108,6 +108,13 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, isDragging, sele
       }
     }
 
+    // Check if selected object overlaps with any other object
+    const overlappingObjects = otherObjects.filter(obj => {
+      const overlapX = selectedObject.x < obj.x + obj.width && selectedObject.x + selectedObject.width > obj.x;
+      const overlapY = selectedObject.y < obj.y + obj.height && selectedObject.y + selectedObject.height > obj.y;
+      return overlapX && overlapY;
+    });
+
     // Object-to-object guides
     otherObjects.forEach(obj => {
       const hDist1 = Math.abs(selectedObject.x - (obj.x + obj.width));
@@ -115,10 +122,14 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, isDragging, sele
       const vDist1 = Math.abs(selectedObject.y - (obj.y + obj.height));
       const vDist2 = Math.abs((selectedObject.y + selectedObject.height) - obj.y);
 
+      // If overlapping, show internal guides relative to the overlapping object
+      const isOverlapping = overlappingObjects.includes(obj);
+      const guideLimit = isOverlapping ? 4 : maxGuidesPerSide; // More guides when overlapping
+
       // Left side object guides
       if (hDist1 > 0 && hDist1 <= maxDistance) {
         const steps = Math.floor(hDist1 / 20);
-        for (let i = 1; i <= steps; i++) {
+        for (let i = 1; i <= Math.min(steps, guideLimit); i++) {
           const d = i * 20;
           const pos = selectedObject.x - d;
           if (pos >= 0 && pos <= canvasWidth) {
@@ -129,6 +140,77 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, isDragging, sele
               label: `${d}px`
             });
           }
+        }
+      }
+
+      // If overlapping, also show guides from the overlapping object's edges
+      if (isOverlapping) {
+        // Distance from selected object's left edge to overlapping object's left edge
+        const leftToLeft = Math.abs(selectedObject.x - obj.x);
+        if (leftToLeft > 0 && leftToLeft <= maxDistance) {
+          leftGuides.push({
+            type: 'vertical',
+            position: obj.x,
+            distance: leftToLeft,
+            label: `${Math.round(leftToLeft)}px`
+          });
+        }
+
+        // Distance from selected object's right edge to overlapping object's right edge
+        const rightToRight = Math.abs((selectedObject.x + selectedObject.width) - (obj.x + obj.width));
+        if (rightToRight > 0 && rightToRight <= maxDistance) {
+          rightGuides.push({
+            type: 'vertical',
+            position: obj.x + obj.width,
+            distance: rightToRight,
+            label: `${Math.round(rightToRight)}px`
+          });
+        }
+
+        // Distance from selected object's top edge to overlapping object's top edge
+        const topToTop = Math.abs(selectedObject.y - obj.y);
+        if (topToTop > 0 && topToTop <= maxDistance) {
+          topGuides.push({
+            type: 'horizontal',
+            position: obj.y,
+            distance: topToTop,
+            label: `${Math.round(topToTop)}px`
+          });
+        }
+
+        // Distance from selected object's bottom edge to overlapping object's bottom edge
+        const bottomToBottom = Math.abs((selectedObject.y + selectedObject.height) - (obj.y + obj.height));
+        if (bottomToBottom > 0 && bottomToBottom <= maxDistance) {
+          bottomGuides.push({
+            type: 'horizontal',
+            position: obj.y + obj.height,
+            distance: bottomToBottom,
+            label: `${Math.round(bottomToBottom)}px`
+          });
+        }
+
+        // Center alignment with overlapping object
+        const selectedCenterX = selectedObject.x + selectedObject.width / 2;
+        const objCenterX = obj.x + obj.width / 2;
+        const selectedCenterY = selectedObject.y + selectedObject.height / 2;
+        const objCenterY = obj.y + obj.height / 2;
+
+        if (Math.abs(selectedCenterX - objCenterX) < 5) {
+          allGuides.push({
+            type: 'vertical',
+            position: objCenterX,
+            distance: 0,
+            label: 'center'
+          });
+        }
+
+        if (Math.abs(selectedCenterY - objCenterY) < 5) {
+          allGuides.push({
+            type: 'horizontal',
+            position: objCenterY,
+            distance: 0,
+            label: 'center'
+          });
         }
       }
 
@@ -249,26 +331,43 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, isDragging, sele
 
   if (guides.length === 0) return null;
 
+  // Stagger labels to prevent overlap
+  const verticalLabelPositions: number[] = [];
+  const horizontalLabelPositions: number[] = [];
+
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1000 }}>
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 9999 }}>
       {guides.map((guide, idx) => {
         if (guide.type === 'vertical') {
+          // Find a non-overlapping position for this label
+          let labelTop = 8;
+          for (const existingPos of verticalLabelPositions) {
+            if (Math.abs(existingPos - labelTop) < 20) {
+              labelTop = existingPos + 20;
+            }
+          }
+          verticalLabelPositions.push(labelTop);
+
           return (
-            <div key={idx} className="absolute top-0 bottom-0" style={{ left: guide.position }}>
+            <div key={idx} className="absolute top-0 bottom-0" style={{ left: guide.position, zIndex: 9999 }}>
               <div 
                 className="w-px h-full" 
                 style={{ 
                   background: guide.distance === 0 ? 'var(--color-acc2)' : 'var(--color-acc)',
-                  opacity: guide.distance === 0 ? 0.8 : 0.4
+                  opacity: guide.distance === 0 ? 0.9 : 0.5
                 }} 
               />
               {guide.distance > 0 && (
                 <div 
-                  className="absolute top-2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono"
+                  className="absolute -translate-x-1/2 px-2 py-1 rounded text-[10px] font-mono font-bold whitespace-nowrap"
                   style={{ 
-                    background: 'rgba(255,107,61,0.9)', 
+                    background: 'var(--color-acc)', 
                     color: 'white',
-                    left: '50%'
+                    left: '50%',
+                    top: `${labelTop}px`,
+                    zIndex: 10000,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.2)'
                   }}
                 >
                   {guide.label}
@@ -277,22 +376,35 @@ export function AdvancedGrid({ canvasWidth, canvasHeight, zoom, isDragging, sele
             </div>
           );
         } else {
+          // Find a non-overlapping position for this label
+          let labelLeft = 8;
+          for (const existingPos of horizontalLabelPositions) {
+            if (Math.abs(existingPos - labelLeft) < 50) {
+              labelLeft = existingPos + 50;
+            }
+          }
+          horizontalLabelPositions.push(labelLeft);
+
           return (
-            <div key={idx} className="absolute left-0 right-0" style={{ top: guide.position }}>
+            <div key={idx} className="absolute left-0 right-0" style={{ top: guide.position, zIndex: 9999 }}>
               <div 
                 className="h-px w-full" 
                 style={{ 
                   background: guide.distance === 0 ? 'var(--color-acc2)' : 'var(--color-acc)',
-                  opacity: guide.distance === 0 ? 0.8 : 0.4
+                  opacity: guide.distance === 0 ? 0.9 : 0.5
                 }} 
               />
               {guide.distance > 0 && (
                 <div 
-                  className="absolute left-2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono"
+                  className="absolute -translate-y-1/2 px-2 py-1 rounded text-[10px] font-mono font-bold whitespace-nowrap"
                   style={{ 
-                    background: 'rgba(255,107,61,0.9)', 
+                    background: 'var(--color-acc)', 
                     color: 'white',
-                    top: '50%'
+                    top: '50%',
+                    left: `${labelLeft}px`,
+                    zIndex: 10000,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.2)'
                   }}
                 >
                   {guide.label}
