@@ -133,7 +133,7 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
   
   return (
     <div
-      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      className="absolute cursor-move"
       style={{
         left: x,
         top: y,
@@ -147,7 +147,9 @@ function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: a
           deco.glow ? `drop-shadow(0 0 12px ${deco.hue || '#ffffff'})` : '',
         ].filter(Boolean).join(' ') || undefined,
         pointerEvents: 'auto',
-        zIndex: selected ? 100 : 1,
+        zIndex: deco.zIndex ?? 1,
+        outline: selected ? '2px solid var(--color-acc)' : 'none',
+        outlineOffset: selected ? '2px' : '0',
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -852,7 +854,7 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
 
   return (
     <div
-      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      className="absolute cursor-move"
       style={{
         left: x,
         top: y,
@@ -860,6 +862,9 @@ function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: I
         height: size,
         transform: `rotate(${icon.rotation}deg)`,
         opacity: icon.opacity,
+        zIndex: icon.zIndex ?? 500,
+        outline: selected ? '2px solid var(--color-acc)' : 'none',
+        outlineOffset: selected ? '2px' : '0',
       }}
       onPointerDown={onDown}
       onPointerMove={onMove}
