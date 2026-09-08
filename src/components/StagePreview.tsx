@@ -1164,6 +1164,17 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
   const handleCanvasClick = (e: React.MouseEvent) => {
+    // Only select background if clicking directly on canvas background, not on objects
+    const target = e.target as HTMLElement;
+    const isCanvasBackground = target === e.currentTarget || 
+                               target.classList.contains('workspace-bg') ||
+                               target.closest('[data-canvas-background]');
+    
+    if (!isCanvasBackground) {
+      // Click was on an object, don't change selection
+      return;
+    }
+    
     if (toolMode === 'zoom') {
       // Zoom in on click
       const rect = e.currentTarget.getBoundingClientRect();
@@ -1201,6 +1212,7 @@ export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'z
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
+          data-canvas-background="true"
           onClick={handleCanvasClick}
           onPointerDown={(e) => {
             // Only select background if clicking directly on canvas, not on objects
