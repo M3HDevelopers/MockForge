@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { extractColorsFromImage, generateThemeVariations, type ExtractedColor, type ThemeVariation } from '../utils/colorExtraction';
 import { useStudio } from '../store';
+import { IcRefresh, IcLock, IcUnlock } from '../icons';
 
 export function ThemePanel() {
   const project = useStudio(s => s.project);
@@ -10,6 +11,11 @@ export function ThemePanel() {
   const [themeVariations, setThemeVariations] = useState<ThemeVariation[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [selectedVariationIdx, setSelectedVariationIdx] = useState<number | null>(null);
+  const [isFloating, setIsFloating] = useState(false);
+  const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
 
   const handleExtractColors = async () => {
     if (!selectedDeviceId || !project) return;
@@ -27,8 +33,6 @@ export function ThemePanel() {
       
       const variations = generateThemeVariations(colors);
       setThemeVariations(variations);
-      
-      // Save to store so variations can use them
       setStoreThemeVariations(variations);
     } catch (error) {
       console.error('Failed to extract colors:', error);
@@ -51,36 +55,112 @@ export function ThemePanel() {
         a1: variation.accent,
         a2: variation.colors[0] || variation.accent,
       },
+      text: {
+        ...p.text,
+        color: variation.text,
+      },
     }));
   };
+
+  const scrambleColors = (variationIdx: number) => {
+    if (!project || !themeVariations[variationIdx]) return;
+
+    const variation = themeVariations[variationIdx];
+    const shuffled = [...variation.colors].sort(() => Math.random() - 0.5);
+    
+    const newVariation = {
+      ...variation,
+      colors: shuffled,
+      background: shuffled[0] || variation.background,
+      accent: shuffled[1] || variation.accent,
+      text: shuffled[2] || variation.text,
+    };
+
+    const newVariations = [...themeVariations];
+    newVariations[variationIdx] = newVariation;
+    setThemeVariations(newVariations);
+    setStoreThemeVariations(newVariations);
+
+    // Apply the scrambled theme immediately
+    applyTheme(newVariation);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isFloating) return;
+    setIsDragging(true);
+    const rect = dragRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPosition({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging]);
 
   if (!project) return null;
 
   const devicesWithScreenshots = project.devices.filter(d => d.assetId);
 
-  return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold mb-2">Smart Theme Generator</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          Extract colors from your screenshot and generate harmonious theme variations
-        </p>
+  const content = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>Smart Theme Generator</h3>
+          <p className="text-xs mt-1" style={{ color: 'var(--color-dim)' }}>
+            Extract colors and generate themes
+          </p>
+        </div>
+        <button
+          onClick={() => setIsFloating(!isFloating)}
+          className="icon-btn"
+          title={isFloating ? 'Dock panel' : 'Float panel'}
+        >
+          {isFloating ? <IcLock size={14} /> : <IcUnlock size={14} />}
+        </button>
       </div>
 
       {devicesWithScreenshots.length > 0 ? (
         <>
           <div>
-            <label className="text-xs font-medium mb-1.5 block">Select Device</label>
+            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--color-mut)' }}>Select Device</label>
             <select
               value={selectedDeviceId}
               onChange={(e) => setSelectedDeviceId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+              className="w-full px-3 py-2 text-sm rounded-md border"
+              style={{
+                backgroundColor: 'var(--color-panel2)',
+                borderColor: 'var(--color-line)',
+                color: 'var(--color-fg)',
+              }}
             >
-              <option value="">Choose a device...</option>
+              <option value="" style={{ backgroundColor: 'var(--color-panel2)' }}>Choose a device...</option>
               {devicesWithScreenshots.map(device => {
                 const asset = project.assets.find(a => a.id === device.assetId);
                 return (
-                  <option key={device.id} value={device.id}>
+                  <option key={device.id} value={device.id} style={{ backgroundColor: 'var(--color-panel2)' }}>
                     {device.name} - {asset?.name || 'Screenshot'}
                   </option>
                 );
@@ -91,22 +171,30 @@ export function ThemePanel() {
           <button
             onClick={handleExtractColors}
             disabled={!selectedDeviceId || loading}
-            className="w-full px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2.5 text-sm font-medium rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'var(--color-acc)',
+              color: '#1a0e08',
+              border: 'none',
+            }}
           >
             {loading ? 'Extracting...' : 'Extract Colors & Generate Themes'}
           </button>
 
           {extractedColors.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold mb-2">Extracted Colors</h4>
-              <div className="flex gap-2">
+              <h4 className="text-xs font-semibold mb-2" style={{ color: 'var(--color-fg)' }}>Extracted Colors</h4>
+              <div className="flex gap-2 flex-wrap">
                 {extractedColors.map((color, idx) => (
                   <div key={idx} className="flex flex-col items-center">
                     <div
-                      className="w-12 h-12 rounded-md border border-border"
-                      style={{ backgroundColor: color.hex }}
+                      className="w-12 h-12 rounded-md border-2"
+                      style={{ 
+                        backgroundColor: color.hex,
+                        borderColor: 'var(--color-line)',
+                      }}
                     />
-                    <span className="text-[10px] mt-1 text-muted-foreground">
+                    <span className="text-[10px] mt-1 font-mono" style={{ color: 'var(--color-dim)' }}>
                       {color.percentage.toFixed(0)}%
                     </span>
                   </div>
@@ -117,28 +205,63 @@ export function ThemePanel() {
 
           {themeVariations.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold mb-2">Theme Variations</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold" style={{ color: 'var(--color-fg)' }}>Theme Variations</h4>
+                <span className="text-[10px]" style={{ color: 'var(--color-dim)' }}>
+                  Click to apply
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {themeVariations.map((variation, idx) => (
-                  <button
+                  <div
                     key={idx}
-                    onClick={() => applyTheme(variation)}
-                    className="p-3 rounded-md border border-border hover:border-primary transition-colors text-left"
+                    className="relative group"
                   >
-                    <div className="flex gap-1 mb-2">
-                      {variation.colors.slice(0, 4).map((color, cidx) => (
-                        <div
-                          key={cidx}
-                          className="w-6 h-6 rounded-sm border border-border"
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                    <div className="text-xs font-medium">{variation.name}</div>
-                    <div className="text-[10px] text-muted-foreground capitalize">
-                      {variation.type}
-                    </div>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setSelectedVariationIdx(idx);
+                        applyTheme(variation);
+                      }}
+                      className="w-full p-3 rounded-md border-2 transition-all text-left"
+                      style={{
+                        borderColor: selectedVariationIdx === idx ? 'var(--color-acc)' : 'var(--color-line)',
+                        backgroundColor: selectedVariationIdx === idx ? 'rgba(255,107,61,0.1)' : 'var(--color-panel)',
+                      }}
+                    >
+                      <div className="flex gap-1 mb-2">
+                        {variation.colors.slice(0, 4).map((color, cidx) => (
+                          <div
+                            key={cidx}
+                            className="w-6 h-6 rounded-sm border"
+                            style={{ 
+                              backgroundColor: color,
+                              borderColor: 'var(--color-line)',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-xs font-medium" style={{ color: 'var(--color-fg)' }}>{variation.name}</div>
+                      <div className="text-[10px] capitalize" style={{ color: 'var(--color-dim)' }}>
+                        {variation.type}
+                      </div>
+                    </button>
+                    
+                    {/* Scramble Colors Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        scrambleColors(idx);
+                      }}
+                      className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{
+                        backgroundColor: 'var(--color-panel2)',
+                        border: '1px solid var(--color-line)',
+                      }}
+                      title="Scramble colors"
+                    >
+                      <IcRefresh size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -146,11 +269,35 @@ export function ThemePanel() {
         </>
       ) : (
         <div className="text-center py-8">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm" style={{ color: 'var(--color-dim)' }}>
             Add a screenshot to a device to extract colors
           </p>
         </div>
       )}
     </div>
   );
+
+  if (isFloating) {
+    return (
+      <div
+        ref={dragRef}
+        className="fixed z-50 rounded-lg shadow-2xl border-2"
+        style={{
+          left: position.x,
+          top: position.y,
+          width: 320,
+          backgroundColor: 'var(--color-panel)',
+          borderColor: 'var(--color-line)',
+          cursor: isDragging ? 'grabbing' : 'grab',
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="p-4">
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="p-4">{content}</div>;
 }
