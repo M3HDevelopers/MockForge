@@ -8,6 +8,7 @@ import {
 } from './templates';
 import { DECO_PRESETS } from './templates';
 import { IMAGE_ASSETS } from './imageAssets';
+import type { ThemeVariation } from './utils/colorExtraction';
 import { ICONS } from './iconLibrary';
 
 /* =========================================================================
@@ -465,7 +466,7 @@ export function generateDesign(base: Project, opts: GenOpts): Project {
 }
 
 /** Generate n scored variations of the base design (best-first). */
-export function generateVariations(base: Project, n: number, mood: Mood, bgType?: 'vector' | 'image' | 'hybrid'): Project[] {
+export function generateVariations(base: Project, n: number, mood: Mood, bgType?: 'vector' | 'image' | 'hybrid', themeVariations?: ThemeVariation[]): Project[] {
   const out: { p: Project; s: number }[] = [];
   const moods: Mood[] = ['auto', 'minimal', 'premium', 'creative', 'developer', 'dark', 'light', 'editorial', 'bold', 'elegant', 'futuristic', 'playful', 'corporate', 'luxury', 'impact', 'technical'];
   
@@ -498,6 +499,20 @@ export function generateVariations(base: Project, n: number, mood: Mood, bgType?
       decoIntensity: 40 + (i % 4) * 15, // Vary intensity: 40-85%
       includeText: true,
     });
+    
+    // Apply theme variation colors if available
+    if (themeVariations && themeVariations.length > 0) {
+      const themeVar = themeVariations[i % themeVariations.length];
+      p.background = {
+        ...p.background,
+        c1: themeVar.background,
+        c2: themeVar.accent,
+      };
+      p.accents = {
+        a1: themeVar.accent,
+        a2: themeVar.colors[0] || themeVar.accent,
+      };
+    }
     
     // Also vary text position for more variety
     const positions: Array<'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'> = 

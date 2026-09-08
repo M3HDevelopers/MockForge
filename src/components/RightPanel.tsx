@@ -813,6 +813,57 @@ function LayersList() {
           );
         })}
 
+        {/* Text Boxes */}
+        {project.textboxes?.map((tb: any) => {
+          const on = selection?.kind === 'textbox' && selection.id === tb.id;
+          return (
+            <div key={tb.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'textbox', id: tb.id })}
+              style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, textboxes: p.textboxes.map(x => x.id === tb.id ? { ...x, opacity: x.opacity === 0 ? 1 : 0 } : x) }), false); }}>
+                <IcEye size={12} />
+              </button>
+              <span className="flex-1 text-[12px] truncate">{tb.name || 'Text Box'}</span>
+              <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, textboxes: p.textboxes.filter(x => x.id !== tb.id) }), false); }}>
+                <IcTrash size={10} />
+              </button>
+            </div>
+          );
+        })}
+
+        {/* Icons */}
+        {project.icons?.map((icon: any) => {
+          const on = selection?.kind === 'icon' && selection.id === icon.id;
+          return (
+            <div key={icon.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'icon', id: icon.id })}
+              style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, icons: p.icons.map(x => x.id === icon.id ? { ...x, opacity: x.opacity === 0 ? 1 : 0 } : x) }), false); }}>
+                <IcEye size={12} />
+              </button>
+              <span className="flex-1 text-[12px] truncate">Icon</span>
+              <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, icons: p.icons.filter(x => x.id !== icon.id) }), false); }}>
+                <IcTrash size={10} />
+              </button>
+            </div>
+          );
+        })}
+
+        {/* Decorations */}
+        {project.decos?.map((deco: any) => {
+          const on = selection?.kind === 'deco' && selection.id === deco.id;
+          return (
+            <div key={deco.id} className={rowCls(!!on)} onClick={() => setSelection({ kind: 'deco', id: deco.id })}
+              style={on ? { boxShadow: 'inset 2px 0 0 var(--color-acc)' } : undefined}>
+              <button className="icon-btn !w-6 !h-6" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, decos: p.decos.map(x => x.id === deco.id ? { ...x, opacity: x.opacity === 0 ? 1 : 0 } : x) }), false); }}>
+                <IcEye size={12} />
+              </button>
+              <span className="flex-1 text-[12px] truncate">Decoration</span>
+              <button className="icon-btn !w-5 !h-5 hover:!text-danger" onClick={(e) => { e.stopPropagation(); checkpoint(); update(p => ({ ...p, decos: p.decos.filter(x => x.id !== deco.id) }), false); }}>
+                <IcTrash size={10} />
+              </button>
+            </div>
+          );
+        })}
+
         {([
           { kind: 'text' as const, label: 'Text block', on: project.text.enabled, toggle: () => update(p => ({ ...p, text: { ...p.text, enabled: !p.text.enabled } }), false) },
           { kind: 'logo' as const, label: 'Logo', on: project.logo.enabled, toggle: () => update(p => ({ ...p, logo: { ...p.logo, enabled: !p.logo.enabled } }), false) },

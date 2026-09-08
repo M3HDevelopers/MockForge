@@ -7,6 +7,7 @@ import { renderBackground } from '../backgrounds';
 import { drawDecos } from '../decos';
 import { DeviceFrame } from './DeviceFrame';
 import { ICONS } from '../iconLibrary';
+import { AdvancedGrid } from './AdvancedGrid';
 
 export function bgStyle(b: Background): CSSProperties {
   if (b.type === 'solid') return { background: b.c1 };
@@ -42,12 +43,14 @@ function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
   );
 }
 
-function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; canvasH: number }) {
+function DecoLayer({ deco, canvasW, canvasH, onDragStart, onDragEnd }: { deco: any; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
-  const selected = useStudio(s => s.selection?.kind === 'deco' && s.selection.id === deco.id);
+  const selected = useStudio(s => s.selection?.kind === 'deco' && (s.selection.id === deco.id || s.selection.ids?.includes(deco.id)));
   
   const size = deco.scale * Math.min(canvasW, canvasH);
   const x = deco.x * canvasW - size / 2;
@@ -57,10 +60,22 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
   
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'deco', id: deco.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'deco' && selection.ids?.includes(deco.id)) {
+        useStudio.getState().removeFromSelection('deco', deco.id);
+      } else {
+        addToSelection('deco', deco.id);
+      }
+    } else {
+      setSelection({ kind: 'deco', id: deco.id, ids: [deco.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
+    onDragStart();
   };
   
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
@@ -76,6 +91,7 @@ function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; can
   
   const onUp = () => {
     dragRef.current = null;
+    onDragEnd();
   };
   
   return (
@@ -669,15 +685,17 @@ function LogoOverlay({ p }: { p: Project }) {
   );
 }
 
-function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: number; canvasH: number }) {
+function IconLayer({ icon, canvasW, canvasH, onDragStart, onDragEnd }: { icon: IconLayerType; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const iconDef = ICONS.find((i) => i.id === icon.iconId);
   if (!iconDef) return null;
 
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
-  const selected = useStudio(s => s.selection?.kind === 'icon' && s.selection.id === icon.id);
+  const selected = useStudio(s => s.selection?.kind === 'icon' && (s.selection.id === icon.id || s.selection.ids?.includes(icon.id)));
   
   const size = icon.size * Math.min(canvasW, canvasH);
   const x = icon.x * canvasW - size / 2;
@@ -690,10 +708,22 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'icon', id: icon.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'icon' && selection.ids?.includes(icon.id)) {
+        useStudio.getState().removeFromSelection('icon', icon.id);
+      } else {
+        addToSelection('icon', icon.id);
+      }
+    } else {
+      setSelection({ kind: 'icon', id: icon.id, ids: [icon.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
+    onDragStart();
   };
 
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
@@ -709,6 +739,7 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
 
   const onUp = () => {
     dragRef.current = null;
+    onDragEnd();
   };
 
   return (
@@ -773,12 +804,14 @@ function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: n
   );
 }
 
-function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: number; canvasH: number }) {
+function TextBoxLayer({ textbox, canvasW, canvasH, onDragStart, onDragEnd }: { textbox: any; canvasW: number; canvasH: number; onDragStart: () => void; onDragEnd: () => void }) {
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
-  const selected = useStudio(s => s.selection?.kind === 'textbox' && s.selection.id === textbox.id);
+  const selected = useStudio(s => s.selection?.kind === 'textbox' && (s.selection.id === textbox.id || s.selection.ids?.includes(textbox.id)));
   
   const x = textbox.x * canvasW;
   const y = textbox.y * canvasH;
@@ -788,10 +821,22 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
   
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'textbox', id: textbox.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'textbox' && selection.ids?.includes(textbox.id)) {
+        useStudio.getState().removeFromSelection('textbox', textbox.id);
+      } else {
+        addToSelection('textbox', textbox.id);
+      }
+    } else {
+      setSelection({ kind: 'textbox', id: textbox.id, ids: [textbox.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: textbox.x, oy: textbox.y };
+    onDragStart();
   };
   
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
@@ -807,6 +852,37 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
   
   const onUp = () => {
     dragRef.current = null;
+    onDragEnd();
+  };
+  
+  // Double-click to edit
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(textbox.text);
+  
+  const onDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditText(textbox.text);
+  };
+  
+  const onFinishEdit = () => {
+    setIsEditing(false);
+    if (editText !== textbox.text) {
+      update(p => ({
+        ...p,
+        textboxes: p.textboxes.map(t => t.id === textbox.id ? { ...t, text: editText } : t)
+      }), false);
+    }
+  };
+  
+  const onEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onFinishEdit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditText(textbox.text);
+    }
   };
   
   // Background style
@@ -842,32 +918,64 @@ function TextBoxLayer({ textbox, canvasW, canvasH }: { textbox: any; canvasW: nu
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onDoubleClick={onDoubleClick}
     >
-      <div
-        style={{
-          fontFamily: textbox.fontFamily,
-          fontSize: textbox.fontSize,
-          fontWeight: textbox.fontWeight,
-          color: textbox.color,
-          textAlign: textbox.align,
-          lineHeight: 1.4,
-          wordWrap: 'break-word',
-        }}
-      >
-        {textbox.text}
-      </div>
+      {isEditing ? (
+        <textarea
+          autoFocus
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onBlur={onFinishEdit}
+          onKeyDown={onEditKeyDown}
+          style={{
+            fontFamily: textbox.fontFamily,
+            fontSize: textbox.fontSize,
+            fontWeight: textbox.fontWeight,
+            color: textbox.color,
+            textAlign: textbox.align,
+            lineHeight: 1.4,
+            wordWrap: 'break-word',
+            width: '100%',
+            minHeight: textbox.fontSize * 1.4,
+            background: 'transparent',
+            border: '1px dashed var(--color-acc)',
+            outline: 'none',
+            resize: 'none',
+            padding: 0,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            fontFamily: textbox.fontFamily,
+            fontSize: textbox.fontSize,
+            fontWeight: textbox.fontWeight,
+            color: textbox.color,
+            textAlign: textbox.align,
+            lineHeight: 1.4,
+            wordWrap: 'break-word',
+          }}
+        >
+          {textbox.text}
+        </div>
+      )}
     </div>
   );
 }
 
-function DeviceNode({ d, guides, setGuides }: {
+function DeviceNode({ d, guides, setGuides, setDistanceInfo, onDragStart, onDragEnd }: {
   d: DeviceLayer;
   guides: { v: number | null; h: number | null };
   setGuides: (g: { v: number | null; h: number | null }) => void;
+  setDistanceInfo: (info: { left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   const p = useStudio(s => s.project)!;
   const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
   const setSelection = useStudio(s => s.setSelection);
+  const addToSelection = useStudio(s => s.addToSelection);
+  const selection = useStudio(s => s.selection);
   const update = useStudio(s => s.update);
   const checkpoint = useStudio(s => s.checkpoint);
   const zoom = useStudio(s => s.zoom);
@@ -875,14 +983,29 @@ function DeviceNode({ d, guides, setGuides }: {
   const [dropHot, setDropHot] = useState(false);
   const asset = p.assets.find(a => a.id === d.assetId);
   const h = d.w / DEVICE_META[d.kind].aspect;
-  const dragRef = useRef<{ mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number } | null>(null);
+  const dragRef = useRef<{ mode: 'move' | 'resize' | 'rotate'; sx: number; sy: number; ox: number; oy: number; ow: number; startAngle?: number } | null>(null);
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setSelection({ kind: 'device', id: d.id });
+    
+    // Multi-select with Shift key
+    if (e.shiftKey) {
+      if (selection?.kind === 'device' && selection.ids?.includes(d.id)) {
+        // If already selected, remove from selection
+        useStudio.getState().removeFromSelection('device', d.id);
+      } else {
+        // Add to selection
+        addToSelection('device', d.id);
+      }
+    } else {
+      // Single select
+      setSelection({ kind: 'device', id: d.id, ids: [d.id] });
+    }
+    
     checkpoint();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
+    onDragStart();
   };
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -898,13 +1021,30 @@ function DeviceNode({ d, guides, setGuides }: {
       if (gv) nx = tx - d.w / 2;
       if (gh) ny = ty - h / 2;
       setGuides({ v: gv ? tx : null, h: gh ? ty : null });
+      
+      // Calculate distances
+      const left = Math.round(nx);
+      const right = Math.round(p.canvas.w - (nx + d.w));
+      const top = Math.round(ny);
+      const bottom = Math.round(p.canvas.h - (ny + h));
+      setDistanceInfo({ left, right, top, bottom });
+      
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: nx, y: ny } : x) }), false);
-    } else {
+    } else if (drag.mode === 'resize') {
       const nw = clamp(drag.ow + dx, 90, p.canvas.w * 1.1);
       update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
+    } else if (drag.mode === 'rotate') {
+      // Calculate rotation angle
+      const centerX = d.x + d.w / 2;
+      const centerY = d.y + h / 2;
+      const currentAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+      const startAngle = drag.startAngle || 0;
+      const newTilt = d.tilt + (currentAngle - startAngle);
+      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, tilt: newTilt } : x) }), false);
+      drag.startAngle = currentAngle;
     }
   };
-  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); };
+  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); setDistanceInfo(null); onDragEnd(); };
 
   const onDrop = (e: RDragEvent) => {
     e.preventDefault();
@@ -930,20 +1070,35 @@ function DeviceNode({ d, guides, setGuides }: {
 
       {selected && (
         <>
-          <svg className="absolute pointer-events-none" style={{ left: -7, top: -7, width: d.w + 14, height: h + 14 }}>
+          <svg className="absolute pointer-events-none" style={{ left: -7, top: -7, width: d.w + 14, height: h + 14, zIndex: 50 }}>
             <rect className="sel-ring-svg" x={1} y={1} width={d.w + 12} height={h + 12} rx={8} />
           </svg>
-          <div className="absolute z-10" style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+          <div className="absolute" style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap', zIndex: 10001, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
             {d.name.toUpperCase()}
           </div>
           <div
-            className="absolute z-10"
-            style={{ right: -8, bottom: -8, width: 15, height: 15, background: 'var(--color-acc)', border: '2.5px solid #101114', borderRadius: 5, cursor: 'nwse-resize' }}
+            className="absolute"
+            style={{ right: -8, bottom: -8, width: 15, height: 15, background: 'var(--color-acc)', border: '2.5px solid #101114', borderRadius: 5, cursor: 'nwse-resize', zIndex: 100 }}
             onPointerDown={(e) => {
               e.stopPropagation();
               checkpoint();
               (e.target as HTMLElement).setPointerCapture(e.pointerId);
               dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
+            }}
+          />
+          {/* Rotation handle */}
+          <div
+            className="absolute"
+            style={{ left: '50%', top: -35, transform: 'translateX(-50%)', width: 18, height: 18, background: 'var(--color-acc2)', border: '2.5px solid #101114', borderRadius: '50%', cursor: 'grab', zIndex: 100 }}
+            title="Rotate"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              const centerX = d.x + d.w / 2;
+              const centerY = d.y + h / 2;
+              const startAngle = Math.atan2(e.clientY / zoom - centerY, e.clientX / zoom - centerX) * (180 / Math.PI);
+              dragRef.current = { mode: 'rotate', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w, startAngle };
             }}
           />
         </>
@@ -952,7 +1107,7 @@ function DeviceNode({ d, guides, setGuides }: {
   );
 }
 
-export function StagePreview() {
+export function StagePreview({ toolMode = 'select' }: { toolMode?: 'select' | 'zoom' | 'pan' }) {
   const p = useStudio(s => s.project)!;
   const zoom = useStudio(s => s.zoom);
   const setZoom = useStudio(s => s.setZoom);
@@ -960,6 +1115,11 @@ export function StagePreview() {
   const selection = useStudio(s => s.selection);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+  const [distanceInfo, setDistanceInfo] = useState<{ left?: number; right?: number; top?: number; bottom?: number; gapX?: number; gapY?: number } | null>(null);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -973,38 +1133,224 @@ export function StagePreview() {
     return () => el.removeEventListener('wheel', onWheel);
   }, [zoom, setZoom]);
 
+  // Pan handlers
+  const handlePanStart = (e: React.PointerEvent) => {
+    if (toolMode !== 'pan') return;
+    setIsPanning(true);
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      offsetX: panOffset.x,
+      offsetY: panOffset.y,
+    };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePanMove = (e: React.PointerEvent) => {
+    if (!isPanning || toolMode !== 'pan') return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPanOffset({
+      x: panStartRef.current.offsetX + dx,
+      y: panStartRef.current.offsetY + dy,
+    });
+  };
+
+  const handlePanEnd = () => {
+    setIsPanning(false);
+  };
+
   const W = p.canvas.w * zoom, H = p.canvas.h * zoom;
   const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (toolMode === 'zoom') {
+      // Zoom in on click
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Calculate zoom center
+      const newZoom = zoom * 1.5;
+      setZoom(Math.min(newZoom, 8));
+    } else if (toolMode === 'select') {
+      setSelection({ kind: 'background' });
+    }
+  };
+
   return (
-    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ touchAction: 'none' }}>
-      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
+    <div 
+      ref={wrapRef} 
+      className="workspace-bg relative flex-1 overflow-auto noise-overlay" 
+      style={{ 
+        touchAction: 'none',
+        cursor: toolMode === 'zoom' ? 'zoom-in' : toolMode === 'pan' ? (isPanning ? 'grabbing' : 'grab') : 'default'
+      }}
+      onPointerDown={handlePanStart}
+      onPointerMove={handlePanMove}
+      onPointerUp={handlePanEnd}
+      onPointerCancel={handlePanEnd}
+    >
+      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ 
+        width: '100%', 
+        minHeight: '100%', 
+        minWidth: 'fit-content',
+        transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+        transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+      }}>
         <div
           className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
           style={{ width: W, height: H }}
-          onPointerDown={() => setSelection({ kind: 'background' })}
+          onClick={handleCanvasClick}
+          onPointerDown={(e) => {
+            // Only select background if clicking directly on canvas, not on objects
+            if (toolMode === 'select' && e.target === e.currentTarget) {
+              setSelection({ kind: 'background' });
+            }
+          }}
         >
           <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
             <PaintCanvas p={p} depth="all" />
-            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
+            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} setDistanceInfo={setDistanceInfo} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />)}
             <PaintCanvas p={p} depth="front" />
             {p.decos.map(deco => (
-              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             {p.icons.map(icon => (
-              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             {p.textboxes.map(textbox => (
-              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+              <TextBoxLayer key={textbox.id} textbox={textbox} canvasW={p.canvas.w} canvasH={p.canvas.h} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} />
             ))}
             <LogoOverlay p={p} />
             <TextOverlay p={p} />
+            
+            {/* Advanced Grid - Canva-style distance guides for all object types */}
+            {isDragging && selection && (() => {
+              let selectedObject = null;
+              let otherObjects: Array<{x: number; y: number; width: number; height: number}> = [];
+
+              if (selection.kind === 'device') {
+                const selectedDevice = p.devices.find(d => d.id === selection.id);
+                if (selectedDevice) {
+                  const selectedH = selectedDevice.w / DEVICE_META[selectedDevice.kind].aspect;
+                  selectedObject = {
+                    x: selectedDevice.x,
+                    y: selectedDevice.y,
+                    width: selectedDevice.w,
+                    height: selectedH
+                  };
+                  otherObjects = p.devices.filter(d => d.id !== selection.id).map(d => ({
+                    x: d.x,
+                    y: d.y,
+                    width: d.w,
+                    height: d.w / DEVICE_META[d.kind].aspect
+                  }));
+                }
+              } else if (selection.kind === 'icon') {
+                const selectedIcon = p.icons.find(i => i.id === selection.id);
+                if (selectedIcon) {
+                  const size = selectedIcon.size * Math.min(p.canvas.w, p.canvas.h);
+                  selectedObject = {
+                    x: selectedIcon.x * p.canvas.w - size / 2,
+                    y: selectedIcon.y * p.canvas.h - size / 2,
+                    width: size,
+                    height: size
+                  };
+                  otherObjects = p.icons.filter(i => i.id !== selection.id).map(i => {
+                    const s = i.size * Math.min(p.canvas.w, p.canvas.h);
+                    return {
+                      x: i.x * p.canvas.w - s / 2,
+                      y: i.y * p.canvas.h - s / 2,
+                      width: s,
+                      height: s
+                    };
+                  });
+                }
+              } else if (selection.kind === 'deco') {
+                const selectedDeco = p.decos.find(d => d.id === selection.id);
+                if (selectedDeco) {
+                  const size = selectedDeco.scale * Math.min(p.canvas.w, p.canvas.h);
+                  selectedObject = {
+                    x: selectedDeco.x * p.canvas.w - size / 2,
+                    y: selectedDeco.y * p.canvas.h - size / 2,
+                    width: size,
+                    height: size
+                  };
+                  otherObjects = p.decos.filter(d => d.id !== selection.id).map(d => {
+                    const s = d.scale * Math.min(p.canvas.w, p.canvas.h);
+                    return {
+                      x: d.x * p.canvas.w - s / 2,
+                      y: d.y * p.canvas.h - s / 2,
+                      width: s,
+                      height: s
+                    };
+                  });
+                }
+              } else if (selection.kind === 'textbox') {
+                const selectedTextbox = p.textboxes.find(t => t.id === selection.id);
+                if (selectedTextbox) {
+                  const estimatedHeight = selectedTextbox.fontSize * 1.5; // Estimate height based on font size
+                  selectedObject = {
+                    x: selectedTextbox.x * p.canvas.w,
+                    y: selectedTextbox.y * p.canvas.h,
+                    width: selectedTextbox.width * p.canvas.w,
+                    height: estimatedHeight
+                  };
+                  otherObjects = p.textboxes.filter(t => t.id !== selection.id).map(t => ({
+                    x: t.x * p.canvas.w,
+                    y: t.y * p.canvas.h,
+                    width: t.width * p.canvas.w,
+                    height: t.fontSize * 1.5
+                  }));
+                }
+              }
+
+              if (!selectedObject) return null;
+
+              return (
+                <AdvancedGrid 
+                  canvasWidth={p.canvas.w}
+                  canvasHeight={p.canvas.h}
+                  zoom={zoom}
+                  isDragging={isDragging}
+                  selectedObject={selectedObject}
+                  otherObjects={otherObjects}
+                />
+              );
+            })()}
 
             {guides.v != null && (
               <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: guides.v, width: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
             )}
             {guides.h != null && (
               <div className="absolute left-0 right-0 pointer-events-none" style={{ top: guides.h, height: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
+            )}
+
+            {/* Distance indicators */}
+            {distanceInfo && (
+              <>
+                {distanceInfo.left !== undefined && (
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.left}px
+                  </div>
+                )}
+                {distanceInfo.right !== undefined && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.right}px
+                  </div>
+                )}
+                {distanceInfo.top !== undefined && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.top}px
+                  </div>
+                )}
+                {distanceInfo.bottom !== undefined && (
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[10px] font-mono pointer-events-none" style={{ background: 'rgba(255,107,61,0.9)', color: 'white' }}>
+                    {distanceInfo.bottom}px
+                  </div>
+                )}
+              </>
             )}
 
             {p.devices.length === 0 && (
