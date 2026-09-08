@@ -1,0 +1,607 @@
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent as RPointerEvent, DragEvent as RDragEvent } from 'react';
+import { useStudio } from '../store';
+import type { Background, DeviceLayer, IconLayer as IconLayerType, Project } from '../types';
+import { clamp, computeFit, deviceGeometry, DEVICE_META, luminance, textOn, DECO_PRESETS } from '../templates';
+import { renderBackground } from '../backgrounds';
+import { drawDecos } from '../decos';
+import { DeviceFrame } from './DeviceFrame';
+import { ICONS } from '../iconLibrary';
+
+export function bgStyle(b: Background): CSSProperties {
+  if (b.type === 'solid') return { background: b.c1 };
+  if (b.type === 'linear') return { background: `linear-gradient(${b.angle}deg, ${b.c1}, ${b.c2})` };
+  if (b.type === 'radial') return { background: `radial-gradient(120% 120% at 50% 42%, ${b.c1}, ${b.c2})` };
+  return { background: `radial-gradient(70% 70% at 82% 16%, ${b.c2}77, transparent 70%), radial-gradient(65% 65% at 14% 88%, ${b.c3}6e, transparent 70%), ${b.c1}` };
+}
+
+function PaintCanvas({ p, depth }: { p: Project; depth: 'front' | 'all' }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+    if (depth === 'all') {
+      renderBackground(ctx, p.background, p.canvas.w, p.canvas.h, p.accents).then(() => {
+        drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'back');
+      });
+    } else {
+      drawDecos(ctx, p.decos, p.canvas.w, p.canvas.h, p.accents, 'front');
+    }
+  }, [p.background, p.decos, p.accents, p.canvas.w, p.canvas.h, depth]);
+  return (
+    <canvas
+      ref={ref}
+      width={p.canvas.w}
+      height={p.canvas.h}
+      className="absolute inset-0"
+      style={{ width: p.canvas.w, height: p.canvas.h, pointerEvents: 'none' }}
+    />
+  );
+}
+
+function DecoLayer({ deco, canvasW, canvasH }: { deco: any; canvasW: number; canvasH: number }) {
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'deco' && s.selection.id === deco.id);
+  
+  const size = deco.scale * Math.min(canvasW, canvasH);
+  const x = deco.x * canvasW - size / 2;
+  const y = deco.y * canvasH - size / 2;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'deco', id: deco.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: deco.x, oy: deco.y };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      decos: p.decos.map(d => d.id === deco.id ? { ...d, x: drag.ox + dx, y: drag.oy + dy } : d)
+    }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        transform: `rotate(${deco.rotation}deg)`,
+        opacity: deco.opacity,
+        filter: deco.blur > 0 ? `blur(${deco.blur}px)` : undefined,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <DecoShapeSVG deco={deco} size={size} />
+    </div>
+  );
+}
+
+function DecoShapeSVG({ deco, size }: { deco: any; size: number }) {
+  const preset = DECO_PRESETS.find((p: any) => p.id === deco.preset);
+  if (!preset) return null;
+  
+  const color = deco.hue || '#ff6b3d';
+  
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" className="w-full h-full">
+      {preset.prim === 'disc' && <circle cx="50" cy="50" r="45" fill={color} />}
+      {preset.prim === 'ring' && <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'square' && <rect x="10" y="10" width="80" height="80" fill={color} />}
+      {preset.prim === 'triangle' && <polygon points="50,10 90,90 10,90" fill={color} />}
+      {preset.prim === 'line' && <line x1="10" y1="50" x2="90" y2="50" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'arc' && <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke={color} strokeWidth="8" />}
+      {preset.prim === 'dotgrid' && (
+        <g fill={color}>
+          {[0,1,2,3,4].map(i => [0,1,2,3,4].map(j => (
+            <circle key={`${i}-${j}`} cx={20 + i * 15} cy={20 + j * 15} r="4" />
+          )))}
+        </g>
+      )}
+      {preset.prim === 'plus' && (
+        <g stroke={color} strokeWidth="8" strokeLinecap="round">
+          <line x1="50" y1="10" x2="50" y2="90" />
+          <line x1="10" y1="50" x2="90" y2="50" />
+        </g>
+      )}
+      {preset.prim === 'sphere' && (
+        <>
+          <circle cx="50" cy="50" r="45" fill={color} opacity="0.3" />
+          <circle cx="35" cy="35" r="15" fill="white" opacity="0.5" />
+        </>
+      )}
+      {preset.prim === 'cube' && (
+        <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" fill={color} opacity="0.8" />
+      )}
+      {preset.prim === 'blob' && (
+        <path d="M 50 10 Q 80 20 85 50 Q 80 80 50 90 Q 20 80 15 50 Q 20 20 50 10 Z" fill={color} opacity="0.7" />
+      )}
+    </svg>
+  );
+}
+
+function ScreenImage({ d, dataUrl, iw, ih }: { d: DeviceLayer; dataUrl: string; iw: number; ih: number }) {
+  const h = d.w / DEVICE_META[d.kind].aspect;
+  const g = deviceGeometry(d.kind, d.w, h, d.radiusMul);
+  const f = computeFit(g, iw, ih, d.fit, d.zoom, d.panX, d.panY);
+  const filter = Math.abs((d.brightness ?? 1) - 1) > 0.02
+    ? `brightness(${d.brightness})` : undefined;
+  return (
+    <div className="absolute overflow-hidden" style={{ left: g.x, top: g.y, width: g.w, height: g.h, borderRadius: g.r }}>
+      <img
+        src={dataUrl} alt="" draggable={false}
+        className="absolute select-none"
+        style={{ left: f.dx - g.x, top: f.dy - g.y, width: f.dw, height: f.dh, pointerEvents: 'none', filter, opacity: d.opacity ?? 1 }}
+      />
+    </div>
+  );
+}
+
+function PlaceholderScreen({ d, highlight }: { d: DeviceLayer; highlight: boolean }) {
+  const h = d.w / DEVICE_META[d.kind].aspect;
+  const g = deviceGeometry(d.kind, d.w, h, d.radiusMul);
+  return (
+    <div
+      className="absolute flex items-center justify-center transition-colors"
+      style={{
+        left: g.x, top: g.y, width: g.w, height: g.h, borderRadius: g.r,
+        background: highlight ? 'rgba(255,107,61,0.28)' : 'repeating-linear-gradient(45deg, #14161b 0 10px, #171a20 10px 20px)',
+      }}
+    >
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: clamp(g.w * 0.045, 10, 22), color: highlight ? '#ffd9c4' : 'rgba(255,255,255,0.32)' }}>
+        {highlight ? 'release to place' : '+ add screenshot'}
+      </span>
+    </div>
+  );
+}
+
+function TextOverlay({ p }: { p: Project }) {
+  const t = p.text;
+  if (!t) return null; // Safety check
+  
+  const selected = useStudio(s => s.selection?.kind === 'text');
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  
+  if (!t.enabled || (!t.title && !t.subtitle && !(t.showBadges && t.badges.length))) return null;
+  
+  const { w: cw, h: ch } = p.canvas;
+  const M = Math.round(Math.min(cw, ch) * 0.055);
+  const ts = clamp(cw * 0.037, 24, 58) * t.scale;
+  const k = clamp(ts / 40, 0.7, 1.4);
+  const color = t.autoColor ? textOn(p.background.c1) : t.color;
+  
+  // Font family mapping
+  const fontMap: Record<string, string> = {
+    'space-grotesk': '"Space Grotesk", sans-serif',
+    'ibm-plex': '"IBM Plex Sans", sans-serif',
+    'system': 'system-ui, -apple-system, sans-serif',
+    'mono': '"JetBrains Mono", monospace',
+    'serif': 'Georgia, serif',
+    'rounded': '"Nunito", sans-serif',
+    'playfair': '"Playfair Display", serif',
+    'roboto': '"Roboto", sans-serif',
+    'open-sans': '"Open Sans", sans-serif',
+    'lato': '"Lato", sans-serif',
+    'montserrat': '"Montserrat", sans-serif',
+    'poppins': '"Poppins", sans-serif',
+    'raleway': '"Raleway", sans-serif',
+    'oswald': '"Oswald", sans-serif',
+    'merriweather': '"Merriweather", serif',
+    'source-code': '"Source Code Pro", monospace',
+    'fira-code': '"Fira Code", monospace',
+    'inter': '"Inter", sans-serif',
+    'work-sans': '"Work Sans", sans-serif',
+    'nunito-sans': '"Nunito Sans", sans-serif',
+  };
+  
+  const fontFamily = fontMap[t.fontFamily || 'space-grotesk'] || fontMap['space-grotesk'];
+  
+  // Use absolute positioning if x, y are set, otherwise use preset position
+  const useAbsolute = t.x !== undefined && t.y !== undefined;
+  
+  const align = t.position.includes('left') ? 'flex-start' : t.position.includes('right') ? 'flex-end' : 'center';
+  const justify = t.position.startsWith('top') ? 'flex-start' : t.position.startsWith('bottom') ? 'flex-end' : 'center';
+  const lightText = luminance(color) > 0.5;
+  
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'text' });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    
+    // Store current position
+    const currentX = t.x !== undefined ? t.x : (t.position.includes('left') ? M : t.position.includes('right') ? cw - M : cw / 2);
+    const currentY = t.y !== undefined ? t.y : (t.position.startsWith('top') ? M : t.position.startsWith('bottom') ? ch - M : ch / 2);
+    
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: currentX, oy: currentY };
+  };
+  
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    
+    const dx = (e.clientX - drag.sx) / zoom;
+    const dy = (e.clientY - drag.sy) / zoom;
+    
+    const newX = drag.ox + dx;
+    const newY = drag.oy + dy;
+    
+    // Update absolute position
+    update(p => ({ ...p, text: { ...p.text, x: newX, y: newY } }), false);
+  };
+  
+  const onUp = () => {
+    dragRef.current = null;
+  };
+  
+  // Container style based on positioning mode
+  const containerStyle = useAbsolute 
+    ? { 
+        position: 'absolute' as const,
+        left: t.x,
+        top: t.y,
+        maxWidth: '92%',
+      }
+    : { 
+        padding: M,
+        alignItems: align,
+        justifyContent: justify,
+      };
+  
+  return (
+    <div className={`absolute inset-0 ${useAbsolute ? '' : 'flex flex-col'} pointer-events-none`} style={containerStyle}>
+      <div
+        className={`flex flex-col cursor-move pointer-events-auto ${selected ? 'sel-ring' : ''}`}
+        style={{ alignItems: useAbsolute ? 'flex-start' : align, maxWidth: '92%' }}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+      >
+        {t.title && (
+          <div style={{ fontFamily, fontWeight: 700, fontSize: ts, lineHeight: 1.1, color, textAlign: useAbsolute ? 'left' : align === 'center' ? 'center' : align === 'flex-end' ? 'right' : 'left' }}>
+            {t.title}
+          </div>
+        )}
+        {t.subtitle && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: ts * 0.34, letterSpacing: 1.6 * k, textTransform: 'uppercase', color, opacity: 0.72, marginTop: t.title ? ts * 0.34 : 0 }}>
+            {t.subtitle}
+          </div>
+        )}
+        {t.showBadges && t.badges.length > 0 && (
+          <div className="flex flex-wrap gap-[8px]" style={{ marginTop: (t.title || t.subtitle) ? ts * 0.42 : 0, justifyContent: useAbsolute ? 'flex-start' : align === 'center' ? 'center' : align }}>
+            {t.badges.map(b => (
+              <span key={b} style={{
+                fontFamily: 'var(--font-mono)', fontSize: 12.5 * k, color,
+                padding: `${5 * k}px ${12 * k}px`, borderRadius: 999,
+                background: lightText ? 'rgba(255,255,255,0.1)' : 'rgba(21,23,28,0.07)',
+                border: `1px solid ${lightText ? 'rgba(255,255,255,0.18)' : 'rgba(21,23,28,0.16)'}`,
+              }}>{b}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LogoOverlay({ p }: { p: Project }) {
+  const setSelection = useStudio(s => s.setSelection);
+  const selected = useStudio(s => s.selection?.kind === 'logo');
+  if (!p.logo.enabled || !p.logo.assetId) return null;
+  const asset = p.assets.find(a => a.id === p.logo.assetId);
+  if (!asset) return null;
+  const M = Math.round(Math.min(p.canvas.w, p.canvas.h) * 0.055);
+  const lw = p.logo.size * p.canvas.w;
+  const lh = lw * (asset.h / asset.w);
+  const pos = p.logo.position;
+  const x = pos.includes('left') ? M : pos.includes('right') ? p.canvas.w - M - lw : (p.canvas.w - lw) / 2;
+  const y = pos.startsWith('top') ? M : pos.startsWith('bottom') ? p.canvas.h - M - lh : (p.canvas.h - lh) / 2;
+  return (
+    <img
+      src={asset.dataUrl} alt="logo" draggable={false}
+      className={`absolute cursor-default ${selected ? 'sel-ring' : ''}`}
+      style={{ left: x, top: y, width: lw, height: lh, opacity: p.logo.opacity }}
+      onPointerDown={(e) => { e.stopPropagation(); setSelection({ kind: 'logo' }); }}
+    />
+  );
+}
+
+function IconLayer({ icon, canvasW, canvasH }: { icon: IconLayerType; canvasW: number; canvasH: number }) {
+  const iconDef = ICONS.find((i) => i.id === icon.iconId);
+  if (!iconDef) return null;
+
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const selected = useStudio(s => s.selection?.kind === 'icon' && s.selection.id === icon.id);
+  
+  const size = icon.size * Math.min(canvasW, canvasH);
+  const x = icon.x * canvasW - size / 2;
+  const y = icon.y * canvasH - size / 2;
+
+  const bgColor = icon.bgColor || '#ffffff';
+  const bgPadding = size * 0.2;
+
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'icon', id: icon.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: icon.x, oy: icon.y };
+  };
+
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom / canvasW;
+    const dy = (e.clientY - drag.sy) / zoom / canvasH;
+    update(p => ({
+      ...p,
+      icons: p.icons.map(i => i.id === icon.id ? { ...i, x: drag.ox + dx, y: drag.oy + dy } : i)
+    }), false);
+  };
+
+  const onUp = () => {
+    dragRef.current = null;
+  };
+
+  return (
+    <div
+      className={`absolute cursor-move ${selected ? 'sel-ring' : ''}`}
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        transform: `rotate(${icon.rotation}deg)`,
+        opacity: icon.opacity,
+      }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      {/* Background */}
+      {icon.bgStyle !== 'none' && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: icon.bgStyle === 'gradient' 
+              ? `linear-gradient(135deg, ${bgColor}88, ${bgColor})`
+              : icon.bgStyle === 'glass'
+              ? `${bgColor}33`
+              : bgColor,
+            borderRadius: icon.bgStyle === 'circle' ? '50%' : icon.bgStyle === 'rounded' || icon.bgStyle === 'glass' ? '20%' : icon.bgStyle === 'badge' ? '8px' : '0',
+            backdropFilter: icon.bgStyle === 'glass' ? 'blur(8px)' : undefined,
+            border: icon.bgStyle === 'glass' ? `1px solid ${bgColor}66` : undefined,
+            boxShadow: icon.shadow 
+              ? '0 4px 12px rgba(0,0,0,0.3)' 
+              : icon.bgStyle === 'glass'
+              ? '0 2px 8px rgba(0,0,0,0.1)'
+              : undefined,
+            filter: icon.glow ? `drop-shadow(0 0 8px ${bgColor})` : undefined,
+          }}
+        />
+      )}
+      
+      {/* Icon SVG */}
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={icon.color}
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="absolute inset-0 z-10"
+        style={{ 
+          padding: icon.bgStyle !== 'none' ? bgPadding : 0,
+          width: size,
+          height: size,
+        }}
+      >
+        <path d={iconDef.d} />
+      </svg>
+    </div>
+  );
+}
+
+function DeviceNode({ d, guides, setGuides }: {
+  d: DeviceLayer;
+  guides: { v: number | null; h: number | null };
+  setGuides: (g: { v: number | null; h: number | null }) => void;
+}) {
+  const p = useStudio(s => s.project)!;
+  const selected = useStudio(s => s.selection?.kind === 'device' && s.selection.id === d.id);
+  const setSelection = useStudio(s => s.setSelection);
+  const update = useStudio(s => s.update);
+  const checkpoint = useStudio(s => s.checkpoint);
+  const zoom = useStudio(s => s.zoom);
+  const assignAsset = useStudio(s => s.assignAsset);
+  const [dropHot, setDropHot] = useState(false);
+  const asset = p.assets.find(a => a.id === d.assetId);
+  const h = d.w / DEVICE_META[d.kind].aspect;
+  const dragRef = useRef<{ mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number } | null>(null);
+
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setSelection({ kind: 'device', id: d.id });
+    checkpoint();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { mode: 'move', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
+  };
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.sx) / zoom;
+    const dy = (e.clientY - drag.sy) / zoom;
+    if (drag.mode === 'move') {
+      let nx = drag.ox + dx, ny = drag.oy + dy;
+      const cx = nx + d.w / 2, cy = ny + h / 2;
+      const tx = p.canvas.w / 2, ty = p.canvas.h / 2;
+      const th = 8 / zoom;
+      const gv = Math.abs(cx - tx) < th; const gh = Math.abs(cy - ty) < th;
+      if (gv) nx = tx - d.w / 2;
+      if (gh) ny = ty - h / 2;
+      setGuides({ v: gv ? tx : null, h: gh ? ty : null });
+      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, x: nx, y: ny } : x) }), false);
+    } else {
+      const nw = clamp(drag.ow + dx, 90, p.canvas.w * 1.1);
+      update(dd => ({ ...dd, devices: dd.devices.map(x => x.id === d.id ? { ...x, w: nw } : x) }), false);
+    }
+  };
+  const onUp = () => { dragRef.current = null; setGuides({ v: null, h: null }); };
+
+  const onDrop = (e: RDragEvent) => {
+    e.preventDefault();
+    setDropHot(false);
+    const assetId = e.dataTransfer.getData('text/asset-id');
+    if (assetId) assignAsset(d.id, assetId);
+  };
+
+  return (
+    <div
+      className="absolute cursor-move"
+      style={{ left: d.x, top: d.y, width: d.w, height: h, transform: `rotate(${d.tilt}deg)`, display: d.visible ? undefined : 'none', opacity: d.opacity ?? 1 }}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+      onDragOver={(e) => { e.preventDefault(); setDropHot(true); }}
+      onDragLeave={() => setDropHot(false)}
+      onDrop={onDrop}
+    >
+      <DeviceFrame kind={d.kind} color={d.color} w={d.w} h={h} part="back" url={d.url} radiusMul={d.radiusMul} material={d.material} reflection={d.reflection} />
+      {asset
+        ? <ScreenImage d={d} dataUrl={asset.dataUrl} iw={asset.w} ih={asset.h} />
+        : <PlaceholderScreen d={d} highlight={dropHot} />}
+      <DeviceFrame kind={d.kind} color={d.color} w={d.w} h={h} part="front" url={d.url} radiusMul={d.radiusMul} material={d.material} reflection={d.reflection} />
+
+      {selected && (
+        <>
+          <svg className="absolute pointer-events-none" style={{ left: -7, top: -7, width: d.w + 14, height: h + 14 }}>
+            <rect className="sel-ring-svg" x={1} y={1} width={d.w + 12} height={h + 12} rx={8} />
+          </svg>
+          <div className="absolute z-10" style={{ left: -7, top: -30, background: 'var(--color-acc)', color: '#1a0e08', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            {d.name.toUpperCase()}
+          </div>
+          <div
+            className="absolute z-10"
+            style={{ right: -8, bottom: -8, width: 15, height: 15, background: 'var(--color-acc)', border: '2.5px solid #101114', borderRadius: 5, cursor: 'nwse-resize' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              checkpoint();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              dragRef.current = { mode: 'resize', sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, ow: d.w };
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+export function StagePreview() {
+  const p = useStudio(s => s.project)!;
+  const zoom = useStudio(s => s.zoom);
+  const setZoom = useStudio(s => s.setZoom);
+  const setSelection = useStudio(s => s.setSelection);
+  const selection = useStudio(s => s.selection);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom(zoom * (e.deltaY < 0 ? 1.08 : 0.92));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [zoom, setZoom]);
+
+  const W = p.canvas.w * zoom, H = p.canvas.h * zoom;
+  const sorted = [...p.devices].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
+
+  return (
+    <div ref={wrapRef} className="workspace-bg relative flex-1 overflow-auto noise-overlay" style={{ touchAction: 'none' }}>
+      <div className="flex items-start justify-center p-6 pt-8 relative z-10" style={{ width: '100%', minHeight: '100%', minWidth: 'fit-content' }}>
+        <div
+          className={`relative shadow-[0_30px_90px_rgba(0,0,0,0.55)] ${selection?.kind === 'background' ? 'sel-ring' : ''}`}
+          style={{ width: W, height: H }}
+          onPointerDown={() => setSelection({ kind: 'background' })}
+        >
+          <div className="absolute top-0 left-0 origin-top-left overflow-hidden" style={{ width: p.canvas.w, height: p.canvas.h, transform: `scale(${zoom})` }}>
+            <PaintCanvas p={p} depth="all" />
+            {sorted.map(d => <DeviceNode key={d.id} d={d} guides={guides} setGuides={setGuides} />)}
+            <PaintCanvas p={p} depth="front" />
+            {p.decos.map(deco => (
+              <DecoLayer key={deco.id} deco={deco} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
+            {p.icons.map(icon => (
+              <IconLayer key={icon.id} icon={icon} canvasW={p.canvas.w} canvasH={p.canvas.h} />
+            ))}
+            <LogoOverlay p={p} />
+            <TextOverlay p={p} />
+
+            {guides.v != null && (
+              <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: guides.v, width: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
+            )}
+            {guides.h != null && (
+              <div className="absolute left-0 right-0 pointer-events-none" style={{ top: guides.h, height: 1, background: 'var(--color-acc)', opacity: 0.6 }} />
+            )}
+
+            {p.devices.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="px-6 py-4 text-center" style={{ border: '1.5px dashed rgba(255,255,255,0.25)', borderRadius: 12 }}>
+                  <div style={{ fontFamily: 'var(--font-disp)', fontWeight: 600, fontSize: 20, color: textOn(p.background.c1) }}>Canvas is empty</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: textOn(p.background.c1), opacity: 0.6, marginTop: 4 }}>add a device from the left panel</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="absolute -bottom-7 left-0 flex items-center gap-2" style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--color-dim)' }}>
+            <span>{p.canvas.w} × {p.canvas.h}</span>
+            <span style={{ color: '#3a3f4b' }}>·</span>
+            <span>{p.devices.length} device{p.devices.length === 1 ? '' : 's'}</span>
+            <span style={{ color: '#3a3f4b' }}>·</span>
+            <span>{Math.round(zoom * 100)}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
